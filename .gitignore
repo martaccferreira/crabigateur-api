@@ -1,0 +1,5 @@
+.env
+
+postgres-data
+
+db/initial-data
