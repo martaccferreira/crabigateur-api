@@ -12,12 +12,14 @@ import (
 type Server struct {
 	router *gin.Engine
 	userService api.UserService
+	cardService api.CardService
 }
 
-func NewServer(router *gin.Engine, userService api.UserService) *Server{
+func NewServer(router *gin.Engine, userService api.UserService, cardService api.CardService) *Server{
 	return &Server{
 		router: router,
 		userService: userService,
+		cardService: cardService,
 	}
 }
 

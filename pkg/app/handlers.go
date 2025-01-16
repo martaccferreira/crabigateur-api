@@ -25,7 +25,7 @@ func (s *Server) GetUserLessons() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Content-Type", "application/json")
 
-		var pathParams api.PathParams
+		var pathParams api.UserPath
 		if err := c.ShouldBindUri(&pathParams); err != nil {
 			log.Printf("handler error: invalid uri params: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
@@ -39,7 +39,7 @@ func (s *Server) GetUserLessons() gin.HandlerFunc {
 			return
 		}
 
-		cards, err := s.userService.LessonCards(pathParams.UserId, queryParams.NumLessons)
+		cards, ids, err := s.userService.LessonCards(pathParams.UserId, queryParams.NumLessons)
 		if err != nil {
 			log.Printf("service error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -49,6 +49,7 @@ func (s *Server) GetUserLessons() gin.HandlerFunc {
 		response := map[string]interface{}{
 			"data": map[string]interface{}{
 				"cards": cards,
+				"card_ids": ids,
 				"total": len(cards),
 			},
 		}
@@ -61,7 +62,7 @@ func (s *Server) GetUserReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Content-Type", "application/json")
 
-		var pathParams api.PathParams
+		var pathParams api.UserPath
 		if err := c.ShouldBindUri(&pathParams); err != nil {
 			log.Printf("handler error: invalid uri params: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
@@ -75,7 +76,7 @@ func (s *Server) GetUserReviews() gin.HandlerFunc {
 			return
 		}
 
-		reviews, err := s.userService.ReviewCards(pathParams.UserId, queryParams.NumReviews, queryParams.Sort)
+		reviews, ids, err := s.userService.ReviewCards(pathParams.UserId, queryParams.NumReviews, queryParams.Sort)
 		if err != nil {
 			log.Printf("service error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -85,6 +86,7 @@ func (s *Server) GetUserReviews() gin.HandlerFunc {
 		response := map[string]interface{}{
 			"data":   map[string]interface{}{
 				"cards": reviews,
+				"card_ids": ids,
 				"total": len(reviews),
 			},
 		}
@@ -97,7 +99,7 @@ func (s *Server) PostUserReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Content-Type", "application/json")
 
-		var pathParams api.PathParams
+		var pathParams api.UserPath
 		if err := c.ShouldBindUri(&pathParams); err != nil {
 			log.Printf("handler error: invalid uri params: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
@@ -131,7 +133,7 @@ func (s *Server) PutUserReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Content-Type", "application/json")
 
-		var pathParams api.PathParams
+		var pathParams api.UserPath
 		if err := c.ShouldBindUri(&pathParams); err != nil {
 			log.Printf("handler error: invalid uri params: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
@@ -155,6 +157,69 @@ func (s *Server) PutUserReviews() gin.HandlerFunc {
 
 		response := map[string]interface{}{
 			"data":   results,
+		}
+
+		c.JSON(http.StatusOK, response)
+	}
+}
+
+func (s *Server) GetUserQuizSummary() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Content-Type", "application/json")
+
+		var pathParams api.UserPath
+		if err := c.ShouldBindUri(&pathParams); err != nil {
+			log.Printf("handler error: invalid uri params: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
+			return
+		}
+
+		var list api.QuizList
+		err := c.ShouldBindJSON(&list)
+		if err != nil {
+			log.Printf("handler error: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid quiz list format"})
+			return
+		}
+
+		summary, err := s.userService.GetQuizSummary(pathParams.UserId, list.CardIds)
+		if err != nil {
+			log.Printf("service error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		response := map[string]interface{}{
+			"data":   summary,
+		}
+
+		c.JSON(http.StatusOK, response)
+	}
+}
+
+func (s *Server) GetCardById() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Content-Type", "application/json")
+
+		var pathParams api.CardPath
+		if err := c.ShouldBindUri(&pathParams); err != nil {
+			log.Printf("handler error: invalid uri params: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid card_id"})
+			return
+		}
+
+		card, err := s.cardService.GetCardById(pathParams.CardId)
+		if err != nil {
+			log.Printf("service error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		} else if card.IsEmpty() {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Card not found"})
+			return
+		}
+
+		response := map[string]interface{}{
+			"data":   card,
 		}
 
 		c.JSON(http.StatusOK, response)

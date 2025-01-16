@@ -25,14 +25,19 @@ func (m *MockUserRepository) GetReviews(userId string, numReviews int, sort []ap
 	return args.Get(0).([]api.Card), args.Error(1)
 }
 
-func (m *MockUserRepository) InsertReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error) {
-	args := m.Called(userId, reviews)
-	return args.Get(0).([]api.ReviewResult), args.Error(1)
+func (m *MockUserRepository) InsertReview(userId string, review api.Review) (api.ReviewResult, error) {
+	args := m.Called(userId, review)
+	return args.Get(0).(api.ReviewResult), args.Error(1)
 }
 
-func (m *MockUserRepository) UpdateReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error) {
-	args := m.Called(userId, reviews)
-	return args.Get(0).([]api.ReviewResult), args.Error(1)
+func (m *MockUserRepository) UpdateReview(userId string, review api.Review) (api.ReviewResult, error) {
+	args := m.Called(userId, review)
+	return args.Get(0).(api.ReviewResult), args.Error(1)
+}
+
+func (m *MockUserRepository) GetMostRecentReview(userId string, cardId int) (api.ReviewResult, error) {
+	args := m.Called(userId, cardId)
+	return args.Get(0).(api.ReviewResult), args.Error(1)
 }
 
 func TestUserService_LessonCards(t *testing.T) {
@@ -43,6 +48,7 @@ func TestUserService_LessonCards(t *testing.T) {
 		mockResult []api.Card
 		mockError  error
 		expected   []api.Card
+		expectedId []int
 		expectErr  bool
 	}{
 		{
@@ -52,6 +58,7 @@ func TestUserService_LessonCards(t *testing.T) {
 			mockResult: []api.Card{{CardId: 1, Word: "word1"}},
 			mockError:  nil,
 			expected:   []api.Card{{CardId: 1, Word: "word1"}},
+			expectedId:   []int{1},
 			expectErr:  false,
 		},
 		{
@@ -61,6 +68,7 @@ func TestUserService_LessonCards(t *testing.T) {
 			mockResult: nil,
 			mockError:  errors.New("repository error"),
 			expected:   nil,
+			expectedId: nil,
 			expectErr:  true,
 		},
 	}
@@ -72,7 +80,7 @@ func TestUserService_LessonCards(t *testing.T) {
 
 			mockRepo.On("GetLessons", tt.userId, tt.numLessons).Return(tt.mockResult, tt.mockError)
 
-			result, err := service.LessonCards(tt.userId, tt.numLessons)
+			result, resultId, err := service.LessonCards(tt.userId, tt.numLessons)
 			log.Println(err)
 
 			if tt.expectErr {
@@ -80,6 +88,7 @@ func TestUserService_LessonCards(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
+				assert.Equal(t, tt.expectedId, resultId)
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -96,6 +105,7 @@ func TestUserService_ReviewCards(t *testing.T) {
 		mockResult []api.Card
 		mockError  error
 		expected   []api.Card
+		expectedId []int
 		expectErr  bool
 	}{
 		{
@@ -106,6 +116,7 @@ func TestUserService_ReviewCards(t *testing.T) {
 			mockResult: []api.Card{{CardId: 1, Word: "word1"}},
 			mockError:  nil,
 			expected:   []api.Card{{CardId: 1, Word: "word1"}},
+			expectedId: []int{1},
 			expectErr:  false,
 		},
 		{
@@ -116,6 +127,7 @@ func TestUserService_ReviewCards(t *testing.T) {
 			mockResult: nil,
 			mockError:  errors.New("repository error"),
 			expected:   nil,
+			expectedId: nil,
 			expectErr:  true,
 		},
 	}
@@ -127,13 +139,14 @@ func TestUserService_ReviewCards(t *testing.T) {
 
 			mockRepo.On("GetReviews", tt.userId, tt.numReviews, tt.sort).Return(tt.mockResult, tt.mockError)
 
-			result, err := service.ReviewCards(tt.userId, tt.numReviews, tt.sort)
+			result, resultId, err := service.ReviewCards(tt.userId, tt.numReviews, tt.sort)
 
 			if tt.expectErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
+				assert.Equal(t, tt.expectedId, resultId)
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -146,7 +159,7 @@ func TestUserService_AddReviews(t *testing.T) {
 		name      string
 		userId    string
 		reviews   []api.Review
-		mockResult []api.ReviewResult
+		mockResult api.ReviewResult
 		mockError  error
 		expected  []api.ReviewResult
 		expectErr bool
@@ -155,7 +168,7 @@ func TestUserService_AddReviews(t *testing.T) {
 			name:      "Success",
 			userId:    "123",
 			reviews:   []api.Review{{CardId: 1, Success: new(bool)}},
-			mockResult: []api.ReviewResult{{CardId: 1, Success: true}},
+			mockResult: api.ReviewResult{CardId: 1, Success: true},
 			mockError:  nil,
 			expected:  []api.ReviewResult{{CardId: 1, Success: true}},
 			expectErr: false,
@@ -164,7 +177,7 @@ func TestUserService_AddReviews(t *testing.T) {
 			name:      "Repository Error",
 			userId:    "123",
 			reviews:   []api.Review{{CardId: 1, Success: new(bool)}},
-			mockResult: nil,
+			mockResult: api.ReviewResult{},
 			mockError:  errors.New("repository error"),
 			expected:  nil,
 			expectErr: true,
@@ -176,7 +189,7 @@ func TestUserService_AddReviews(t *testing.T) {
 			mockRepo := new(MockUserRepository)
 			service := api.NewUserService(mockRepo)
 
-			mockRepo.On("InsertReviews", tt.userId, tt.reviews).Return(tt.mockResult, tt.mockError)
+			mockRepo.On("InsertReview", tt.userId, tt.reviews[0]).Return(tt.mockResult, tt.mockError)
 
 			result, err := service.AddReviews(tt.userId, tt.reviews)
 
@@ -197,7 +210,7 @@ func TestUserService_UpdateReviews(t *testing.T) {
 		name      string
 		userId    string
 		reviews   []api.Review
-		mockResult []api.ReviewResult
+		mockResult api.ReviewResult
 		mockError  error
 		expected  []api.ReviewResult
 		expectErr bool
@@ -206,7 +219,7 @@ func TestUserService_UpdateReviews(t *testing.T) {
 			name:      "Success",
 			userId:    "123",
 			reviews:   []api.Review{{CardId: 1, Success: new(bool)}},
-			mockResult: []api.ReviewResult{{CardId: 1, Success: true}},
+			mockResult: api.ReviewResult{CardId: 1, Success: true},
 			mockError:  nil,
 			expected:  []api.ReviewResult{{CardId: 1, Success: true}},
 			expectErr: false,
@@ -215,7 +228,7 @@ func TestUserService_UpdateReviews(t *testing.T) {
 			name:      "Repository Error",
 			userId:    "123",
 			reviews:   []api.Review{{CardId: 1, Success: new(bool)}},
-			mockResult: nil,
+			mockResult: api.ReviewResult{},
 			mockError:  errors.New("repository error"),
 			expected:  nil,
 			expectErr: true,
@@ -227,7 +240,7 @@ func TestUserService_UpdateReviews(t *testing.T) {
 			mockRepo := new(MockUserRepository)
 			service := api.NewUserService(mockRepo)
 
-			mockRepo.On("UpdateReviews", tt.userId, tt.reviews).Return(tt.mockResult, tt.mockError)
+			mockRepo.On("UpdateReview", tt.userId, tt.reviews[0]).Return(tt.mockResult, tt.mockError)
 
 			result, err := service.UpdateReviews(tt.userId, tt.reviews)
 

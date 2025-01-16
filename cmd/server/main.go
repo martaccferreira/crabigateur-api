@@ -39,8 +39,9 @@ func run() error {
 	router.Use(cors.Default())
 	
 	userService := api.NewUserService(storage)
+	cardService := api.NewCardService(storage)
 
-	server := app.NewServer(router, userService)
+	server := app.NewServer(router, userService, cardService)
 
 	err = server.Run()
 	if err != nil {

@@ -22,8 +22,12 @@ const (
 	LevelDesc SortOrder = "level_desc"
 )
 
-type PathParams struct {
+type UserPath struct {
 	UserId string `uri:"user_id" binding:"required,numeric"`
+}
+
+type CardPath struct {
+	CardId int `uri:"card_id" binding:"required,numeric"`
 }
 
 type QueryParams struct {
@@ -48,4 +52,8 @@ type ReviewResult struct {
 	CardWord string `json:"card_word"`
 	Success bool `json:"success"`
 	StageId string `json:"stage_id"`
+}
+
+type QuizList struct {
+	CardIds []int `json:"card_ids"`
 }
