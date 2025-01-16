@@ -14,32 +14,43 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockUserService struct {
+type MockService struct {
 	mock.Mock
 }
 
 type fields struct {
-	userService *MockUserService
+	userService *MockService
+	cardService *MockService
 }
 
-func (m *MockUserService) LessonCards(userId string, numLessons int) ([]api.Card, error) {
+func (m *MockService) LessonCards(userId string, numLessons int) ([]api.Card, []int, error) {
 	args := m.Called(userId, numLessons)
-	return args.Get(0).([]api.Card), args.Error(1)
+	return args.Get(0).([]api.Card), args.Get(1).([]int), args.Error(2)
 }
 
-func (m *MockUserService) ReviewCards(userId string, numReviews int, sort []api.SortOrder) ([]api.Card, error) {
+func (m *MockService) ReviewCards(userId string, numReviews int, sort []api.SortOrder) ([]api.Card, []int, error) {
 	args := m.Called(userId, numReviews, sort)
-	return args.Get(0).([]api.Card), args.Error(1)
+	return args.Get(0).([]api.Card), args.Get(1).([]int), args.Error(2)
 }
 
-func (m *MockUserService) AddReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error) {
+func (m *MockService) AddReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error) {
 	args := m.Called(userId, reviews)
 	return args.Get(0).([]api.ReviewResult), args.Error(1)
 }
 
-func (m *MockUserService) UpdateReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error) {
+func (m *MockService) UpdateReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error) {
 	args := m.Called(userId, reviews)
 	return args.Get(0).([]api.ReviewResult), args.Error(1)
+}
+
+func (m *MockService) GetQuizSummary(userId string, cardIds []int) ([]api.ReviewResult, error) {
+	args := m.Called(userId, cardIds)
+	return args.Get(0).([]api.ReviewResult), args.Error(1)
+}
+
+func (m *MockService) GetCardById(id int) (api.Card, error) {
+	args := m.Called(id)
+	return args.Get(0).(api.Card), args.Error(1)
 }
 
 type args struct {
@@ -69,13 +80,14 @@ func TestHandlers(t *testing.T) {
 		{
 			name: "GetUserLessons - Success",
 			fields: fields{
-				userService: func() *MockUserService {
-					mockService := new(MockUserService)
+				userService: func() *MockService {
+					mockService := new(MockService)
 					mockService.On("LessonCards", "123", 10).Return([]api.Card{
 						{CardId: 1, Word: "example"},
-					}, nil)
+					}, []int{1}, nil)
 					return mockService
 				}(),
+				cardService: nil,
 			},
 			args: args{
 				request: func() *http.Request {
@@ -84,12 +96,13 @@ func TestHandlers(t *testing.T) {
 				},
 			},
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       `{"data":{"cards":[{"card_id":1,"level":0,"word_type":"","translations":null,"word":"example","gender":"","forms":null,"is_irregular_verb":false}],"total":1}}`,
+			expectedBody:       `{"data":{"card_ids":[1],"cards":[{"card_id":1,"level":0,"word_type":"","translations":null,"word":"example","gender":"","forms":null,"is_irregular_verb":false}],"total":1}}`,
 		},
 		{
 			name: "GetUserLessons - Invalid user_id",
 			fields: fields{
-				userService: new(MockUserService),
+				userService: new(MockService),
+				cardService: nil,
 			},
 			args: args{
 				request: func() *http.Request {
@@ -103,13 +116,14 @@ func TestHandlers(t *testing.T) {
 		{
 			name: "GetUserReviews - Success",
 			fields: fields{
-				userService: func() *MockUserService {
-					mockService := new(MockUserService)
+				userService: func() *MockService {
+					mockService := new(MockService)
 					mockService.On("ReviewCards", "123", 5, []api.SortOrder{api.DateAsc}).Return([]api.Card{
 						{CardId: 1, Word: "reviewed_word"},
-					}, nil)
+					}, []int{1}, nil)
 					return mockService
 				}(),
+				cardService: nil,
 			},
 			args: args{
 				request: func() *http.Request {
@@ -118,12 +132,13 @@ func TestHandlers(t *testing.T) {
 				},
 			},
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       `{"data":{"cards":[{"card_id":1,"level":0,"word_type":"","translations":null,"word":"reviewed_word","gender":"","forms":null,"is_irregular_verb":false}],"total":1}}`,
+			expectedBody:       `{"data":{"card_ids":[1],"cards":[{"card_id":1,"level":0,"word_type":"","translations":null,"word":"reviewed_word","gender":"","forms":null,"is_irregular_verb":false}],"total":1}}`,
 		},
 		{
 			name: "GetUserReviews - Invalid query parameters",
 			fields: fields{
-				userService: new(MockUserService),
+				userService: new(MockService),
+				cardService: nil,
 			},
 			args: args{
 				request: func() *http.Request {
@@ -137,13 +152,14 @@ func TestHandlers(t *testing.T) {
 		{
 			name: "PostUserReviews - Success",
 			fields: fields{
-				userService: func() *MockUserService {
-					mockService := new(MockUserService)
+				userService: func() *MockService {
+					mockService := new(MockService)
 					mockService.On("AddReviews", "123", mock.Anything).Return([]api.ReviewResult{
 						{CardId: 1, Success: true, StageId: "2"},
 					}, nil)
 					return mockService
 				}(),
+				cardService: nil,
 			},
 			args: args{
 				request: func() *http.Request {
@@ -169,7 +185,8 @@ func TestHandlers(t *testing.T) {
 		{
 			name: "PostUserReviews - Invalid review format (missing param)",
 			fields: fields{
-				userService: new(MockUserService),
+				userService: new(MockService),
+				cardService: nil,
 			},
 			args: args{
 				request: func() *http.Request {
@@ -194,7 +211,8 @@ func TestHandlers(t *testing.T) {
 		{
 			name: "PostUserReviews - Invalid review format (wrong date format)",
 			fields: fields{
-				userService: new(MockUserService),
+				userService: new(MockService),
+				cardService: nil,
 			},
 			args: args{
 				request: func() *http.Request {
@@ -221,10 +239,11 @@ func TestHandlers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := tt.fields.userService
+			mockUserService := tt.fields.userService
+			mockCardService := tt.fields.cardService
 			
 			router := gin.Default()
-			server := app.NewServer(router, mockService)
+			server := app.NewServer(router, mockUserService, mockCardService)
 
 			router = server.Routes()
 			server.RegisterValidators()

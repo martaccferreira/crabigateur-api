@@ -1,6 +1,8 @@
 package api
 
 import (
+	"reflect"
+
 	"github.com/go-playground/validator/v10"
 )
 
@@ -41,4 +43,8 @@ var ValidSortOrders validator.Func = func(fl validator.FieldLevel) bool {
 		seen[order] = true
 	}
 	return true
+}
+
+func (c Card) IsEmpty() bool {
+ return reflect.ValueOf(c).IsZero()
 }

@@ -9,8 +9,10 @@ import (
 type Storage interface {
 	GetLessons(userId string, numLessons int) ([]api.Card, error)
 	GetReviews(userId string, numReviews int, sort []api.SortOrder) ([]api.Card, error)
-	InsertReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error)
-	UpdateReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error)
+	InsertReview(userId string, review api.Review) (api.ReviewResult, error)
+	UpdateReview(userId string, review api.Review) (api.ReviewResult, error)
+	GetMostRecentReview(userId string, cardId int) (api.ReviewResult, error)
+	GetCard(id int) (api.Card, error)
 }
 
 type storage struct {
@@ -53,46 +55,64 @@ func (s *storage) GetReviews(userId string, numReviews int, sort []api.SortOrder
 	return cards, nil
 }
 
-func (s *storage) InsertReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error){
-	results := []api.ReviewResult{}
-
-	for _, review := range reviews {
-		_, err := s.ReviewsInsert(userId, review)
-		if err != nil {
-			return nil, fmt.Errorf("storage - Insert into Reviews Query: %s", err)
-		}
-
-		row := s.UserCardStatusInsert(userId, review)
-		
-		var result api.ReviewResult
-		err = row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
-		if err != nil {
-			return nil, fmt.Errorf("storage - InsertReviews: %s", err)
-		}
-
-		results = append(results, result)
+func (s *storage) InsertReview(userId string, review api.Review) (api.ReviewResult, error){
+	_, err := s.ReviewsInsert(userId, review)
+	if err != nil {
+		return api.ReviewResult{}, fmt.Errorf("storage - Insert into Reviews Query: %s", err)
 	}
-	return results, nil
+
+	row := s.UserCardStatusInsert(userId, review)
+	
+	var result api.ReviewResult
+	err = row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
+	if err != nil {
+		return api.ReviewResult{}, fmt.Errorf("storage - InsertReviews: %s", err)
+		}
+
+	return result, nil
 }
 
-func (s *storage) UpdateReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error){
-	results := []api.ReviewResult{}
-
-	for _, review := range reviews {
-		_, err := s.ReviewsInsert(userId, review)
-		if err != nil {
-			return nil, fmt.Errorf("storage - Insert into Reviews Query: %s", err)
-		}
-
-		row := s.UserCardStatusUpdate(userId, review)
-		
-		var result api.ReviewResult
-		err = row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
-		if err != nil {
-			return nil, fmt.Errorf("storage - UpdateReviews: %s", err)
-		}
-
-		results = append(results, result)
+func (s *storage) UpdateReview(userId string, review api.Review) (api.ReviewResult, error){
+	_, err := s.ReviewsInsert(userId, review)
+	if err != nil {
+		return api.ReviewResult{}, fmt.Errorf("storage - Insert into Reviews Query: %s", err)
 	}
-	return results, nil
+
+	row := s.UserCardStatusUpdate(userId, review)
+	
+	var result api.ReviewResult
+	err = row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
+	if err != nil {
+		return api.ReviewResult{}, fmt.Errorf("storage - UpdateReview: %s", err)
+	}
+	return result, nil
+}
+
+func (s *storage) GetMostRecentReview(userId string, cardId int) (api.ReviewResult, error){
+	row := s.MostRecentReviewQuery(userId, cardId)
+	
+	var result api.ReviewResult
+	err := row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
+	if err != nil {
+		return api.ReviewResult{}, fmt.Errorf("storage - GetMostRecentReview: %s", err)
+	}
+	return result, nil
+}
+
+func (s *storage) GetCard(id int) (api.Card, error) {
+	rows, err := s.CardQuery(id) 
+	if err == sql.ErrNoRows {
+		return api.Card{}, nil
+	} else if err != nil {
+		return api.Card{}, fmt.Errorf("storage - GetCard: %s", err)
+	}
+	defer rows.Close()
+
+	result, err := parseAllCardsFromQuery(rows)
+	if err != nil {
+		return api.Card{}, err
+	}
+
+	return result[0], nil
+
 }

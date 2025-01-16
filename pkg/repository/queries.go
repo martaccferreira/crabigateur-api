@@ -7,7 +7,7 @@ import (
 )
 
 const CardSelector = `
-	SELECT c.card_id, c.word, c.translation, c.word_type, c.level, 
+	SELECT c.card_id, c.word, c.translation, c.word_type, c.level, c.gender,
 			con.tense, con.forms, con.irregular, f.gender, f.number, f.form
 	FROM cards c
 	LEFT JOIN conjugations con
@@ -172,4 +172,29 @@ func (s* storage) UserCardStatusUpdate(userId string, review api.Review) (*sql.R
 	`, stageUpdate)
 
 	return s.db.QueryRow(updateQuery, userId, review.CardId, review.ReviewDate, *review.Success)
+}
+
+func (s* storage) MostRecentReviewQuery(userId string, cardId int) (*sql.Row) {
+	mostRecentReview := `
+		SELECT r.card_id, c.word, r.success, ucs.stage_id
+		FROM Reviews r
+		JOIN UserCardStatus ucs
+		ON r.user_id = ucs.user_id AND r.card_id = ucs.card_id
+		JOIN Cards c
+		ON r.card_id = c.card_id
+		WHERE r.user_id = $1 AND r.card_id = $2
+		ORDER BY r.review_date DESC
+		LIMIT 1;
+	`
+
+	return s.db.QueryRow(mostRecentReview, userId, cardId)
+}
+
+func (s* storage) CardQuery(id int) (*sql.Rows, error) {
+	cardQuery := fmt.Sprintf(`
+		%s
+		WHERE c.card_id = $1;
+	`, CardSelector)
+	
+	return s.db.Query(cardQuery, id)
 }

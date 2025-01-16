@@ -31,11 +31,11 @@ func TestGetLessons(t *testing.T) {
 			numLessons: 2,
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
-					"card_id", "word", "translation", "word_type", "level",
+					"card_id", "word", "translation", "word_type", "level", "gender",
 					"tense", "forms", "irregular", "gender", "number", "form",
 				}).
-					AddRow(1, "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil).
-					AddRow(2, "chien", []byte(`["dog"]`), "regular", 1, nil, nil, nil, nil, nil, nil)
+					AddRow(1, "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil).
+					AddRow(2, "chien", []byte(`["dog"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil)
 				mock.ExpectQuery(`WITH PendingLessonCardIds AS .*`).
 					WithArgs("123").
 					WillReturnRows(rows)
@@ -52,7 +52,7 @@ func TestGetLessons(t *testing.T) {
 			numLessons: 2,
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
-					"card_id", "word", "translation", "word_type", "level",
+					"card_id", "word", "translation", "word_type", "level", "gender",
 					"tense", "forms", "irregular", "gender", "number", "form",
 				})
 				mock.ExpectQuery(`WITH PendingLessonCardIds AS .*`).
@@ -80,10 +80,10 @@ func TestGetLessons(t *testing.T) {
 			numLessons: 2,
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
-					"card_id", "word", "translation", "word_type", "level",
+					"card_id", "word", "translation", "word_type", "level", "gender",
 					"tense", "forms", "irregular", "gender", "number", "form",
 				}).
-					AddRow("invalid_id", "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil)
+					AddRow("invalid_id", "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil)
 				mock.ExpectQuery(`WITH PendingLessonCardIds AS .*`).
 					WithArgs("123").
 					WillReturnRows(rows)
@@ -134,11 +134,11 @@ func TestGetReviews(t *testing.T) {
 			sort:       []api.SortOrder{api.DateAsc, api.LevelDesc},
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
-					"card_id", "word", "translation", "word_type", "level",
+					"card_id", "word", "translation", "word_type", "level", "gender",
 					"tense", "forms", "irregular", "gender", "number", "form",
 				}).
-					AddRow(1, "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil).
-					AddRow(2, "chien", []byte(`["dog"]`), "regular", 1, nil, nil, nil, nil, nil, nil)
+					AddRow(1, "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil).
+					AddRow(2, "chien", []byte(`["dog"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil)
 				mock.ExpectQuery(`WITH PendingReviews AS .*`).
 					WithArgs("123").
 					WillReturnRows(rows)
@@ -156,7 +156,7 @@ func TestGetReviews(t *testing.T) {
 			sort:       []api.SortOrder{api.DateAsc},
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
-					"card_id", "word", "translation", "word_type", "level",
+					"card_id", "word", "translation", "word_type", "level", "gender",
 					"tense", "forms", "irregular", "gender", "number", "form",
 				})
 				mock.ExpectQuery(`WITH PendingReviews AS .*`).
@@ -186,10 +186,10 @@ func TestGetReviews(t *testing.T) {
 			sort:       []api.SortOrder{api.DateAsc},
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
-					"card_id", "word", "translation", "word_type", "level",
+					"card_id", "word", "translation", "word_type", "level", "gender",
 					"tense", "forms", "irregular", "gender", "number", "form",
 				}).
-					AddRow("invalid_id", "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil)
+					AddRow("invalid_id", "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil)
 				mock.ExpectQuery(`WITH PendingReviews AS .*`).
 					WithArgs("123").
 					WillReturnRows(rows)

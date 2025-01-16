@@ -96,16 +96,15 @@ func parseNewCardFromRow(card Card, verb Verb, form Form) (api.Card, error) {
 		Translation: unmarshalledTranslations,
 	}
 
+	newCard.Word = card.Word
 	switch card.WordType {
 	case "regular":
-			newCard.Word = card.Word
 			newCard.Gender = nullStringToString(card.Gender)
 	case "irregular":
 			newCard.Forms = make(map[string][]string)
 			newCard.Forms["m.s."] = []string{card.Word}
 			addFormToCard(newCard, form)
 	case "verb":
-			newCard.Word = card.Word
 			newCard.Forms = make(map[string][]string)
 			err = addConjugationToCard(newCard, verb)
 			if err != nil {
@@ -139,7 +138,7 @@ func parseAllCardsFromQuery(rows *sql.Rows) ([]api.Card, error) {
 		var verb Verb
 		var form Form
 
-		err := rows.Scan(&card.CardId, &card.Word, &card.Translation, &card.WordType, &card.Level, &verb.Tense, &verb.Forms, &verb.Irregular, &form.Gender, &form.Number, &form.Form)
+		err := rows.Scan(&card.CardId, &card.Word, &card.Translation, &card.WordType, &card.Level, &card.Gender, &verb.Tense, &verb.Forms, &verb.Irregular, &form.Gender, &form.Number, &form.Form)
 		if err != nil {
 			return nil, err
 		}
