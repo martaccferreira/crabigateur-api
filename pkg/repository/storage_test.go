@@ -121,7 +121,7 @@ func TestGetReviews(t *testing.T) {
 	tests := []struct {
 		name       string
 		userId     string
-		numReviews int
+		firstReview bool
 		sort       []api.SortOrder
 		mockSetup  func()
 		expected   []api.Card
@@ -130,7 +130,7 @@ func TestGetReviews(t *testing.T) {
 		{
 			name:       "Success",
 			userId:     "123",
-			numReviews: 2,
+			firstReview: false,
 			sort:       []api.SortOrder{api.DateAsc, api.LevelDesc},
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
@@ -140,7 +140,7 @@ func TestGetReviews(t *testing.T) {
 					AddRow(1, "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil).
 					AddRow(2, "chien", []byte(`["dog"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil)
 				mock.ExpectQuery(`WITH PendingReviews AS .*`).
-					WithArgs("123").
+					WithArgs("123", false).
 					WillReturnRows(rows)
 			},
 			expected: []api.Card{
@@ -152,7 +152,7 @@ func TestGetReviews(t *testing.T) {
 		{
 			name:       "Empty Result Set",
 			userId:     "123",
-			numReviews: 2,
+			firstReview: false,
 			sort:       []api.SortOrder{api.DateAsc},
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
@@ -160,7 +160,7 @@ func TestGetReviews(t *testing.T) {
 					"tense", "forms", "irregular", "gender", "number", "form",
 				})
 				mock.ExpectQuery(`WITH PendingReviews AS .*`).
-					WithArgs("123").
+					WithArgs("123", false).
 					WillReturnRows(rows)
 			},
 			expected:  []api.Card{},
@@ -169,11 +169,11 @@ func TestGetReviews(t *testing.T) {
 		{
 			name:       "SQL Error",
 			userId:     "123",
-			numReviews: 2,
+			firstReview: false,
 			sort:       []api.SortOrder{api.DateAsc},
 			mockSetup: func() {
 				mock.ExpectQuery(`WITH PendingReviews AS .*`).
-					WithArgs("123").
+					WithArgs("123", false).
 					WillReturnError(fmt.Errorf("query error"))
 			},
 			expected:  nil,
@@ -182,7 +182,7 @@ func TestGetReviews(t *testing.T) {
 		{
 			name:       "Invalid Data in Columns",
 			userId:     "123",
-			numReviews: 2,
+			firstReview: false,
 			sort:       []api.SortOrder{api.DateAsc},
 			mockSetup: func() {
 				rows := sqlmock.NewRows([]string{
@@ -191,7 +191,7 @@ func TestGetReviews(t *testing.T) {
 				}).
 					AddRow("invalid_id", "chat", []byte(`["cat"]`), "regular", 1, nil, nil, nil, nil, nil, nil, nil)
 				mock.ExpectQuery(`WITH PendingReviews AS .*`).
-					WithArgs("123").
+					WithArgs("123", false).
 					WillReturnRows(rows)
 			},
 			expected:  nil,
@@ -202,7 +202,7 @@ func TestGetReviews(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mockSetup()
-			cards, err := storage.GetReviews(tt.userId, tt.numReviews, tt.sort)
+			cards, err := storage.GetReview(tt.userId, tt.firstReview, tt.sort)
 
 			if tt.expectErr {
 				assert.Error(t, err)

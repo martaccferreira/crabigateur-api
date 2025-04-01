@@ -31,9 +31,9 @@ type CardPath struct {
 }
 
 type QueryParams struct {
-	NumLessons int `form:"num_lessons" binding:"omitempty,numeric,gte=0"`
-	NumReviews int `form:"num_reviews" binding:"omitempty,numeric,gte=0"`
+	FirstReview bool `form:"first_review" binding:"omitempty"`
 	Sort []SortOrder `form:"sort" binding:"omitempty,sortable"`
+	NumCards int	`form:"num_cards" binding:"omitempty,numeric,gte=0"`
 }
 
 type Review struct {
@@ -54,6 +54,7 @@ type ReviewResult struct {
 	StageId string `json:"stage_id"`
 }
 
-type QuizList struct {
-	CardIds []int `json:"card_ids"`
+type QuizSummary struct {
+	StageId int             `json:"stage_id"`
+	Cards   []ReviewResult `json:"cards"`
 }

@@ -1,3 +1,3 @@
 # Run
 
-- on root directory: go run ./cmd/api
+- on root directory: cmd/server/main.go

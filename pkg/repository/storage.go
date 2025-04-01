@@ -8,10 +8,10 @@ import (
 
 type Storage interface {
 	GetLessons(userId string, numLessons int) ([]api.Card, error)
-	GetReviews(userId string, numReviews int, sort []api.SortOrder) ([]api.Card, error)
+	GetReview(userId string, firstReview bool, sort []api.SortOrder) ([]api.Card, error)
 	InsertReview(userId string, review api.Review) (api.ReviewResult, error)
 	UpdateReview(userId string, review api.Review) (api.ReviewResult, error)
-	GetMostRecentReview(userId string, cardId int) (api.ReviewResult, error)
+	GetMostRecentReviews(userId string, numCards int) ([]api.ReviewResult, error)
 	GetCard(id int) (api.Card, error)
 }
 
@@ -40,8 +40,8 @@ func (s *storage) GetLessons(userId string, numLessons int) ([]api.Card, error) 
 	return cards, nil
 }
 
-func (s *storage) GetReviews(userId string, numReviews int, sort []api.SortOrder) ([]api.Card, error) {
-	rows, err := s.ReviewsQuery(userId, numReviews, sort)
+func (s *storage) GetReview(userId string, firstReview bool, sort []api.SortOrder) ([]api.Card, error) {
+	rows, err := s.ReviewQuery(userId, firstReview, sort)
 	if err != nil {
 		return nil, fmt.Errorf("storage - Get Review Cards Query: %s", err)
 	}
@@ -58,7 +58,7 @@ func (s *storage) GetReviews(userId string, numReviews int, sort []api.SortOrder
 func (s *storage) InsertReview(userId string, review api.Review) (api.ReviewResult, error){
 	_, err := s.ReviewsInsert(userId, review)
 	if err != nil {
-		return api.ReviewResult{}, fmt.Errorf("storage - Insert into Reviews Query: %s", err)
+		return api.ReviewResult{}, fmt.Errorf("storage - Insert into Review Query: %s", err)
 	}
 
 	row := s.UserCardStatusInsert(userId, review)
@@ -66,8 +66,8 @@ func (s *storage) InsertReview(userId string, review api.Review) (api.ReviewResu
 	var result api.ReviewResult
 	err = row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
 	if err != nil {
-		return api.ReviewResult{}, fmt.Errorf("storage - InsertReviews: %s", err)
-		}
+		return api.ReviewResult{}, fmt.Errorf("storage - InsertReview: %s", err)
+	}
 
 	return result, nil
 }
@@ -88,13 +88,23 @@ func (s *storage) UpdateReview(userId string, review api.Review) (api.ReviewResu
 	return result, nil
 }
 
-func (s *storage) GetMostRecentReview(userId string, cardId int) (api.ReviewResult, error){
-	row := s.MostRecentReviewQuery(userId, cardId)
-	
-	var result api.ReviewResult
-	err := row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
+func (s *storage) GetMostRecentReviews(userId string, numCards int) ([]api.ReviewResult, error){
+	rows, err := s.MostRecentReviewsQuery(userId, numCards)
 	if err != nil {
-		return api.ReviewResult{}, fmt.Errorf("storage - GetMostRecentReview: %s", err)
+		return nil, fmt.Errorf("storage - Get Most Recent Reviews Query: %s", err)
+	}
+	defer rows.Close()
+	fmt.Print(rows)
+	
+	var result []api.ReviewResult
+	for rows.Next() {
+		var review api.ReviewResult
+		err = rows.Scan(&review.CardId, &review.CardWord, &review.Success, &review.StageId)
+		if err != nil {
+			return nil, fmt.Errorf("storage - GetMostRecentReviews: %s", err)
+		}
+		fmt.Print(review)
+		result = append(result, review)
 	}
 	return result, nil
 }

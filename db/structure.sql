@@ -74,7 +74,7 @@ CREATE TABLE Reviews (
     card_id INT not null,
     review_date DATE,
     success BOOLEAN not null,
-    previous_stage INT CHECK (previous_stage BETWEEN 1 AND 9),
+    previous_stage INT CHECK (previous_stage BETWEEN 0 AND 9),
     PRIMARY KEY (review_id),
     FOREIGN KEY (user_id) REFERENCES Users(user_id),
     FOREIGN KEY (card_id) REFERENCES Cards(card_id)

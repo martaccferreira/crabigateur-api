@@ -20,8 +20,8 @@ func (m *MockUserRepository) GetLessons(userId string, numLessons int) ([]api.Ca
 	return args.Get(0).([]api.Card), args.Error(1)
 }
 
-func (m *MockUserRepository) GetReviews(userId string, numReviews int, sort []api.SortOrder) ([]api.Card, error) {
-	args := m.Called(userId, numReviews, sort)
+func (m *MockUserRepository) GetReview(userId string, firstReview bool, sort []api.SortOrder) ([]api.Card, error) {
+	args := m.Called(userId, firstReview, sort)
 	return args.Get(0).([]api.Card), args.Error(1)
 }
 
@@ -35,9 +35,9 @@ func (m *MockUserRepository) UpdateReview(userId string, review api.Review) (api
 	return args.Get(0).(api.ReviewResult), args.Error(1)
 }
 
-func (m *MockUserRepository) GetMostRecentReview(userId string, cardId int) (api.ReviewResult, error) {
+func (m *MockUserRepository) GetMostRecentReviews(userId string, cardId int) ([]api.ReviewResult, error) {
 	args := m.Called(userId, cardId)
-	return args.Get(0).(api.ReviewResult), args.Error(1)
+	return args.Get(0).([]api.ReviewResult), args.Error(1)
 }
 
 func TestUserService_LessonCards(t *testing.T) {
@@ -100,34 +100,31 @@ func TestUserService_ReviewCards(t *testing.T) {
 	tests := []struct {
 		name       string
 		userId     string
-		numReviews int
+		firstReview bool
 		sort       []api.SortOrder
 		mockResult []api.Card
 		mockError  error
-		expected   []api.Card
-		expectedId []int
+		expected   api.Card
 		expectErr  bool
 	}{
 		{
 			name:       "Success",
 			userId:     "123",
-			numReviews: 10,
+			firstReview: true,
 			sort:       []api.SortOrder{api.DateAsc},
 			mockResult: []api.Card{{CardId: 1, Word: "word1"}},
 			mockError:  nil,
-			expected:   []api.Card{{CardId: 1, Word: "word1"}},
-			expectedId: []int{1},
+			expected:   api.Card{CardId: 1, Word: "word1"},
 			expectErr:  false,
 		},
 		{
 			name:       "Repository Error",
 			userId:     "123",
-			numReviews: 10,
+			firstReview: true,
 			sort:       []api.SortOrder{api.DateAsc},
 			mockResult: nil,
 			mockError:  errors.New("repository error"),
-			expected:   nil,
-			expectedId: nil,
+			expected:   api.Card{},
 			expectErr:  true,
 		},
 	}
@@ -137,16 +134,15 @@ func TestUserService_ReviewCards(t *testing.T) {
 			mockRepo := new(MockUserRepository)
             service := api.NewUserService(mockRepo)
 
-			mockRepo.On("GetReviews", tt.userId, tt.numReviews, tt.sort).Return(tt.mockResult, tt.mockError)
+			mockRepo.On("GetReview", tt.userId, tt.firstReview, tt.sort).Return(tt.mockResult, tt.mockError)
 
-			result, resultId, err := service.ReviewCards(tt.userId, tt.numReviews, tt.sort)
+			result, err := service.ReviewCard(tt.userId, tt.firstReview, tt.sort)
 
 			if tt.expectErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
-				assert.Equal(t, tt.expectedId, resultId)
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -158,28 +154,28 @@ func TestUserService_AddReviews(t *testing.T) {
 	tests := []struct {
 		name      string
 		userId    string
-		reviews   []api.Review
+		review   api.Review
 		mockResult api.ReviewResult
 		mockError  error
-		expected  []api.ReviewResult
+		expected  api.ReviewResult
 		expectErr bool
 	}{
 		{
 			name:      "Success",
 			userId:    "123",
-			reviews:   []api.Review{{CardId: 1, Success: new(bool)}},
+			review:   api.Review{CardId: 1, Success: new(bool)},
 			mockResult: api.ReviewResult{CardId: 1, Success: true},
 			mockError:  nil,
-			expected:  []api.ReviewResult{{CardId: 1, Success: true}},
+			expected:  api.ReviewResult{CardId: 1, Success: true},
 			expectErr: false,
 		},
 		{
 			name:      "Repository Error",
 			userId:    "123",
-			reviews:   []api.Review{{CardId: 1, Success: new(bool)}},
+			review:   api.Review{CardId: 1, Success: new(bool)},
 			mockResult: api.ReviewResult{},
 			mockError:  errors.New("repository error"),
-			expected:  nil,
+			expected:  api.ReviewResult{},
 			expectErr: true,
 		},
 	}
@@ -189,9 +185,9 @@ func TestUserService_AddReviews(t *testing.T) {
 			mockRepo := new(MockUserRepository)
 			service := api.NewUserService(mockRepo)
 
-			mockRepo.On("InsertReview", tt.userId, tt.reviews[0]).Return(tt.mockResult, tt.mockError)
+			mockRepo.On("InsertReview", tt.userId, tt.review).Return(tt.mockResult, tt.mockError)
 
-			result, err := service.AddReviews(tt.userId, tt.reviews)
+			result, err := service.AddReview(tt.userId, tt.review)
 
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -209,28 +205,28 @@ func TestUserService_UpdateReviews(t *testing.T) {
 	tests := []struct {
 		name      string
 		userId    string
-		reviews   []api.Review
+		review   api.Review
 		mockResult api.ReviewResult
 		mockError  error
-		expected  []api.ReviewResult
+		expected  api.ReviewResult
 		expectErr bool
 	}{
 		{
 			name:      "Success",
 			userId:    "123",
-			reviews:   []api.Review{{CardId: 1, Success: new(bool)}},
+			review:   api.Review{CardId: 1, Success: new(bool)},
 			mockResult: api.ReviewResult{CardId: 1, Success: true},
 			mockError:  nil,
-			expected:  []api.ReviewResult{{CardId: 1, Success: true}},
+			expected:  api.ReviewResult{CardId: 1, Success: true},
 			expectErr: false,
 		},
 		{
 			name:      "Repository Error",
 			userId:    "123",
-			reviews:   []api.Review{{CardId: 1, Success: new(bool)}},
+			review:   api.Review{CardId: 1, Success: new(bool)},
 			mockResult: api.ReviewResult{},
 			mockError:  errors.New("repository error"),
-			expected:  nil,
+			expected:  api.ReviewResult{},
 			expectErr: true,
 		},
 	}
@@ -240,9 +236,9 @@ func TestUserService_UpdateReviews(t *testing.T) {
 			mockRepo := new(MockUserRepository)
 			service := api.NewUserService(mockRepo)
 
-			mockRepo.On("UpdateReview", tt.userId, tt.reviews[0]).Return(tt.mockResult, tt.mockError)
+			mockRepo.On("UpdateReview", tt.userId, tt.review).Return(tt.mockResult, tt.mockError)
 
-			result, err := service.UpdateReviews(tt.userId, tt.reviews)
+			result, err := service.UpdateReview(tt.userId, tt.review)
 
 			if tt.expectErr {
 				assert.Error(t, err)
