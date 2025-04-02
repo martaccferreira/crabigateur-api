@@ -112,7 +112,7 @@ func (s* storage) ReviewsInsert(userId string, review api.Review) (sql.Result, e
 	return s.db.Exec(reviewsInsert, userId, review.CardId, review.ReviewDate, review.Success)
 }
 
-func (s* storage) UserCardStatusInsert(userId string, review api.Review) (*sql.Row) {
+func (s* storage) UserCardStatusInsert(userId string, cardId int) (*sql.Row) {
 	insertQuery := `
 		WITH inserted AS (
 			INSERT INTO UserCardStatus (user_id, card_id, stage_id, next_review_date)
@@ -120,17 +120,17 @@ func (s* storage) UserCardStatusInsert(userId string, review api.Review) (*sql.R
 				$1, 
 				$2, 
 				0, 
-				$3::TIMESTAMPTZ
+				NOW()
 			)
 			RETURNING card_id
 		)
 
-		SELECT i.card_id, c.word, $4 AS success, 1 AS stage_id
+		SELECT i.card_id, c.word, true AS success, 0 AS stage_id
 		FROM inserted i
 		JOIN Cards c ON i.card_id = c.card_id;
 	`
 
-	return s.db.QueryRow(insertQuery, userId, review.CardId, review.ReviewDate, review.Success)
+	return s.db.QueryRow(insertQuery, userId, cardId)
 
 }
 

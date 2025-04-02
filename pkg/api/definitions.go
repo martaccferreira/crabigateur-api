@@ -54,7 +54,12 @@ type ReviewResult struct {
 	StageId string `json:"stage_id"`
 }
 
+type QuizList struct {
+	CardIds []int `json:"card_ids" binding:"required"`
+}
+
 type QuizSummary struct {
 	StageId int             `json:"stage_id"`
 	Cards   []ReviewResult `json:"cards"`
 }
+

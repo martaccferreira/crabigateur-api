@@ -25,8 +25,8 @@ func (m *MockUserRepository) GetReview(userId string, firstReview bool, sort []a
 	return args.Get(0).([]api.Card), args.Error(1)
 }
 
-func (m *MockUserRepository) InsertReview(userId string, review api.Review) (api.ReviewResult, error) {
-	args := m.Called(userId, review)
+func (m *MockUserRepository) InsertReview(userId string, cardId int) (api.ReviewResult, error) {
+	args := m.Called(userId, cardId)
 	return args.Get(0).(api.ReviewResult), args.Error(1)
 }
 
@@ -152,31 +152,39 @@ func TestUserService_ReviewCards(t *testing.T) {
 
 func TestUserService_AddReviews(t *testing.T) {
 	tests := []struct {
-		name      string
-		userId    string
-		review   api.Review
-		mockResult api.ReviewResult
-		mockError  error
-		expected  api.ReviewResult
-		expectErr bool
+		name       string
+		userId     string
+		cardIds    []int
+		mockResults []api.ReviewResult
+		mockErrors  []error
+		expected   []api.ReviewResult
+		expectErr  bool
 	}{
 		{
-			name:      "Success",
-			userId:    "123",
-			review:   api.Review{CardId: 1, Success: new(bool)},
-			mockResult: api.ReviewResult{CardId: 1, Success: true},
-			mockError:  nil,
-			expected:  api.ReviewResult{CardId: 1, Success: true},
+			name:    "Success",
+			userId:  "123",
+			cardIds: []int{1, 2},
+			mockResults: []api.ReviewResult{
+				{CardId: 1, Success: true},
+				{CardId: 2, Success: false},
+			},
+			mockErrors: []error{nil, nil},
+			expected: []api.ReviewResult{
+				{CardId: 1, Success: true},
+				{CardId: 2, Success: false},
+			},
 			expectErr: false,
 		},
 		{
-			name:      "Repository Error",
-			userId:    "123",
-			review:   api.Review{CardId: 1, Success: new(bool)},
-			mockResult: api.ReviewResult{},
-			mockError:  errors.New("repository error"),
-			expected:  api.ReviewResult{},
-			expectErr: true,
+			name:    "Repository Error",
+			userId:  "123",
+			cardIds: []int{1, 2},
+			mockResults: []api.ReviewResult{
+				{}, 
+			},
+			mockErrors: []error{errors.New("repository error")},
+			expected:   nil, 
+			expectErr:  true,
 		},
 	}
 
@@ -185,9 +193,16 @@ func TestUserService_AddReviews(t *testing.T) {
 			mockRepo := new(MockUserRepository)
 			service := api.NewUserService(mockRepo)
 
-			mockRepo.On("InsertReview", tt.userId, tt.review).Return(tt.mockResult, tt.mockError)
+			// Mock behavior for each cardId in the slice
+			for i, cardId := range tt.cardIds {
+				mockRepo.On("InsertReview", tt.userId, cardId).
+					Return(tt.mockResults[i], tt.mockErrors[i]).Once()
+				if tt.mockErrors[i] != nil {
+					break // Exit early on error to match the actual function behavior
+				}
+			}
 
-			result, err := service.AddReview(tt.userId, tt.review)
+			result, err := service.AddReviews(tt.userId, tt.cardIds)
 
 			if tt.expectErr {
 				assert.Error(t, err)

@@ -9,7 +9,7 @@ import (
 type Storage interface {
 	GetLessons(userId string, numLessons int) ([]api.Card, error)
 	GetReview(userId string, firstReview bool, sort []api.SortOrder) ([]api.Card, error)
-	InsertReview(userId string, review api.Review) (api.ReviewResult, error)
+	InsertReview(userId string, cardId int) (api.ReviewResult, error)
 	UpdateReview(userId string, review api.Review) (api.ReviewResult, error)
 	GetMostRecentReviews(userId string, numCards int) ([]api.ReviewResult, error)
 	GetCard(id int) (api.Card, error)
@@ -55,16 +55,11 @@ func (s *storage) GetReview(userId string, firstReview bool, sort []api.SortOrde
 	return cards, nil
 }
 
-func (s *storage) InsertReview(userId string, review api.Review) (api.ReviewResult, error){
-	_, err := s.ReviewsInsert(userId, review)
-	if err != nil {
-		return api.ReviewResult{}, fmt.Errorf("storage - Insert into Review Query: %s", err)
-	}
-
-	row := s.UserCardStatusInsert(userId, review)
+func (s *storage) InsertReview(userId string, cardId int) (api.ReviewResult, error){
+	row := s.UserCardStatusInsert(userId, cardId)
 	
 	var result api.ReviewResult
-	err = row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
+	err := row.Scan(&result.CardId, &result.CardWord, &result.Success, &result.StageId)
 	if err != nil {
 		return api.ReviewResult{}, fmt.Errorf("storage - InsertReview: %s", err)
 	}

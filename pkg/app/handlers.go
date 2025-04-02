@@ -106,15 +106,15 @@ func (s *Server) PostUserReviews() gin.HandlerFunc {
 			return
 		}
 
-		var review api.Review
-		err := c.ShouldBindJSON(&review)
+		var list api.QuizList
+		err := c.ShouldBindJSON(&list)
 		if err != nil {
 			log.Printf("handler error: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review format"})
 			return
 		}
 
-		result, err := s.userService.AddReview(pathParams.UserId, review)
+		result, err := s.userService.AddReviews(pathParams.UserId, list.CardIds)
 		if err != nil {
 			log.Printf("service error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})

@@ -9,7 +9,7 @@ import (
 type UserService interface {
 	LessonCards(userId string, numLessons int) ([]Card, []int, error)
 	ReviewCard(userId string, firstReview bool, sort []SortOrder) (Card, error)
-	AddReview(userId string, review Review) (ReviewResult, error)
+	AddReviews(userId string, cardId []int) ([]ReviewResult, error)
 	UpdateReview(userId string, review Review) (ReviewResult, error)
 	GetQuizSummary(userId string, numCards int) ([]QuizSummary, error)
 }
@@ -17,7 +17,7 @@ type UserService interface {
 type UserRepository interface {
 	GetLessons(userId string, numLessons int) ([]Card, error)
 	GetReview(userId string, firstReview bool, sort []SortOrder) ([]Card, error)
-	InsertReview(userId string, review Review) (ReviewResult, error)
+	InsertReview(userId string, cardId int) (ReviewResult, error)
 	UpdateReview(userId string, reviews Review) (ReviewResult, error)
 	GetMostRecentReviews(userId string, numCards int) ([]ReviewResult, error)
 }
@@ -55,13 +55,16 @@ func (u* userService) ReviewCard(userId string, firstReview bool, sort []SortOrd
 	return reviews[0], nil
 }
 
-func (u* userService) AddReview(userId string, review Review) (ReviewResult, error) {
-	result, err := u.storage.InsertReview(userId, review)
-	if err != nil {
-		return ReviewResult{}, err
+func (u* userService) AddReviews(userId string, cardIds []int) ([]ReviewResult, error) {
+	results := []ReviewResult{}
+	for _, cardId := range cardIds {
+		result, err := u.storage.InsertReview(userId, cardId)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
 	}
-	
-	return result, nil
+	return results, nil
 }
 
 func (u* userService) UpdateReview(userId string, review Review) (ReviewResult, error) {
