@@ -2,6 +2,7 @@ package app
 
 import (
 	"crabigateur-api/pkg/api"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -39,7 +40,7 @@ func (s *Server) GetUserLessons() gin.HandlerFunc {
 			return
 		}
 
-		cards, ids, err := s.userService.LessonCards(pathParams.UserId, queryParams.NumLessons)
+		cards, ids, err := s.userService.LessonCards(pathParams.UserId, queryParams.NumCards)
 		if err != nil {
 			log.Printf("service error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -76,19 +77,18 @@ func (s *Server) GetUserReviews() gin.HandlerFunc {
 			return
 		}
 
-		reviews, ids, err := s.userService.ReviewCards(pathParams.UserId, queryParams.NumReviews, queryParams.Sort)
+		review, err := s.userService.ReviewCard(pathParams.UserId, queryParams.FirstReview, queryParams.Sort)
 		if err != nil {
 			log.Printf("service error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
+		} else if (review.IsEmpty()) {
+			c.JSON(http.StatusNoContent, gin.H{"data": "No cards to review"})
+			return
 		}
 
 		response := map[string]interface{}{
-			"data":   map[string]interface{}{
-				"cards": reviews,
-				"card_ids": ids,
-				"total": len(reviews),
-			},
+			"data": review,
 		}
 
 		c.JSON(http.StatusOK, response)
@@ -106,15 +106,15 @@ func (s *Server) PostUserReviews() gin.HandlerFunc {
 			return
 		}
 
-		var reviews api.Reviews
-		err := c.ShouldBindJSON(&reviews)
+		var list api.QuizList
+		err := c.ShouldBindJSON(&list)
 		if err != nil {
 			log.Printf("handler error: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review format"})
 			return
 		}
 
-		results, err := s.userService.AddReviews(pathParams.UserId, reviews.Reviews)
+		result, err := s.userService.AddReviews(pathParams.UserId, list.CardIds)
 		if err != nil {
 			log.Printf("service error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -122,7 +122,7 @@ func (s *Server) PostUserReviews() gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"data":   results,
+			"data":   result,
 		}
 
 		c.JSON(http.StatusOK, response)
@@ -140,15 +140,15 @@ func (s *Server) PutUserReviews() gin.HandlerFunc {
 			return
 		}
 
-		var reviews api.Reviews
-		err := c.ShouldBindJSON(&reviews)
+		var review api.Review
+		err := c.ShouldBindJSON(&review)
 		if err != nil {
 			log.Printf("handler error: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review format"})
 			return
 		}
 
-		results, err := s.userService.UpdateReviews(pathParams.UserId, reviews.Reviews)
+		result, err := s.userService.UpdateReview(pathParams.UserId, review)
 		if err != nil {
 			log.Printf("service error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -156,7 +156,7 @@ func (s *Server) PutUserReviews() gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"data":   results,
+			"data":   result,
 		}
 
 		c.JSON(http.StatusOK, response)
@@ -174,15 +174,15 @@ func (s *Server) GetUserQuizSummary() gin.HandlerFunc {
 			return
 		}
 
-		var list api.QuizList
-		err := c.ShouldBindJSON(&list)
-		if err != nil {
-			log.Printf("handler error: %v", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid quiz list format"})
+		var queryParams api.QueryParams
+		if err := c.ShouldBindWith(&queryParams, binding.Query); err != nil {
+			log.Printf("handler error: invalid query params: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
 			return
 		}
 
-		summary, err := s.userService.GetQuizSummary(pathParams.UserId, list.CardIds)
+		fmt.Println(queryParams.NumCards)
+		summary, err := s.userService.GetQuizSummary(pathParams.UserId, queryParams.NumCards)
 		if err != nil {
 			log.Printf("service error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})

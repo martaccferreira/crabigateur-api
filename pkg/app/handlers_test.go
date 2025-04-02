@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
@@ -28,24 +27,24 @@ func (m *MockService) LessonCards(userId string, numLessons int) ([]api.Card, []
 	return args.Get(0).([]api.Card), args.Get(1).([]int), args.Error(2)
 }
 
-func (m *MockService) ReviewCards(userId string, numReviews int, sort []api.SortOrder) ([]api.Card, []int, error) {
-	args := m.Called(userId, numReviews, sort)
-	return args.Get(0).([]api.Card), args.Get(1).([]int), args.Error(2)
+func (m *MockService) ReviewCard(userId string, firstReview bool, sort []api.SortOrder) (api.Card, error) {
+	args := m.Called(userId, firstReview, sort)
+	return args.Get(0).(api.Card), args.Error(1)
 }
 
-func (m *MockService) AddReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error) {
-	args := m.Called(userId, reviews)
-	return args.Get(0).([]api.ReviewResult), args.Error(1)
-}
-
-func (m *MockService) UpdateReviews(userId string, reviews []api.Review) ([]api.ReviewResult, error) {
-	args := m.Called(userId, reviews)
-	return args.Get(0).([]api.ReviewResult), args.Error(1)
-}
-
-func (m *MockService) GetQuizSummary(userId string, cardIds []int) ([]api.ReviewResult, error) {
+func (m *MockService) AddReviews(userId string, cardIds []int) ([]api.ReviewResult, error) {
 	args := m.Called(userId, cardIds)
 	return args.Get(0).([]api.ReviewResult), args.Error(1)
+}
+
+func (m *MockService) UpdateReview(userId string, review api.Review) (api.ReviewResult, error) {
+	args := m.Called(userId, review)
+	return args.Get(0).(api.ReviewResult), args.Error(1)
+}
+
+func (m *MockService) GetQuizSummary(userId string, numCards int) ([]api.QuizSummary, error) {
+	args := m.Called(userId, numCards)
+	return args.Get(0).([]api.QuizSummary), args.Error(1)
 }
 
 func (m *MockService) GetCardById(id int) (api.Card, error) {
@@ -91,7 +90,7 @@ func TestHandlers(t *testing.T) {
 			},
 			args: args{
 				request: func() *http.Request {
-					req, _ := http.NewRequest(http.MethodGet, "/v1/api/lessons/123?num_lessons=10", nil)
+					req, _ := http.NewRequest(http.MethodGet, "/v1/api/lessons/123?num_cards=10", nil)
 					return req
 				},
 			},
@@ -106,7 +105,7 @@ func TestHandlers(t *testing.T) {
 			},
 			args: args{
 				request: func() *http.Request {
-					req, _ := http.NewRequest(http.MethodGet, "/v1/api/lessons/a?num_lessons=10", nil)
+					req, _ := http.NewRequest(http.MethodGet, "/v1/api/lessons/a?num_cards=10", nil)
 					return req
 				},
 			},
@@ -118,21 +117,21 @@ func TestHandlers(t *testing.T) {
 			fields: fields{
 				userService: func() *MockService {
 					mockService := new(MockService)
-					mockService.On("ReviewCards", "123", 5, []api.SortOrder{api.DateAsc}).Return([]api.Card{
-						{CardId: 1, Word: "reviewed_word"},
-					}, []int{1}, nil)
+					mockService.On("ReviewCard", "123", false, []api.SortOrder{api.DateAsc}).Return(api.Card{
+						CardId: 1, Word: "reviewed_word",
+					}, nil)
 					return mockService
 				}(),
 				cardService: nil,
 			},
 			args: args{
 				request: func() *http.Request {
-					req, _ := http.NewRequest(http.MethodGet, "/v1/api/reviews/123?num_reviews=5&sort=date_asc", nil)
+					req, _ := http.NewRequest(http.MethodGet, "/v1/api/reviews/123?sort=date_asc", nil)
 					return req
 				},
 			},
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       `{"data":{"card_ids":[1],"cards":[{"card_id":1,"level":0,"word_type":"","translations":null,"word":"reviewed_word","gender":"","forms":null,"is_irregular_verb":false}],"total":1}}`,
+			expectedBody:       `{"data":{"card_id":1,"level":0,"word_type":"","translations":null,"word":"reviewed_word","gender":"","forms":null,"is_irregular_verb":false}}`,
 		},
 		{
 			name: "GetUserReviews - Invalid query parameters",
@@ -154,7 +153,7 @@ func TestHandlers(t *testing.T) {
 			fields: fields{
 				userService: func() *MockService {
 					mockService := new(MockService)
-					mockService.On("AddReviews", "123", mock.Anything).Return([]api.ReviewResult{
+					mockService.On("AddReviews", "123", []int{1}).Return([]api.ReviewResult{
 						{CardId: 1, Success: true, StageId: "2"},
 					}, nil)
 					return mockService
@@ -163,18 +162,11 @@ func TestHandlers(t *testing.T) {
 			},
 			args: args{
 				request: func() *http.Request {
-					reviews := api.Reviews{
-						Reviews: []api.Review{
-							{
-								CardId:         1,
-								ReviewDate:     time.Now(),
-								Success:        func(b bool) *bool { return &b }(true),
-								IncorrectCount: func(i int) *int { return &i }(0),
-							},
-						},
+					cardIds :=   map[string]interface{}{
+						"card_ids": []int{1},
 					}
-					body, _ := json.Marshal(reviews)
-					req, _ := http.NewRequest(http.MethodPost, "/v1/api/lessons/123", bytes.NewReader(body))
+					body, _ := json.Marshal(cardIds)
+					req, _ := http.NewRequest(http.MethodPost, "/v1/api/reviews/123", bytes.NewReader(body))
 					req.Header.Set("Content-Type", "application/json")
 					return req
 				},
@@ -190,44 +182,9 @@ func TestHandlers(t *testing.T) {
 			},
 			args: args{
 				request: func() *http.Request {
-					reviews := api.Reviews{
-						Reviews: []api.Review{
-							{
-								CardId:         1,
-								ReviewDate:     time.Now(),
-								Success:        func(b bool) *bool { return &b }(true),
-							},
-						},
-					}
-					body, _ := json.Marshal(reviews)
-					req, _ := http.NewRequest(http.MethodPost, "/v1/api/lessons/123", bytes.NewReader(body))
-					req.Header.Set("Content-Type", "application/json")
-					return req
-				},
-			},
-			expectedStatusCode: http.StatusBadRequest,
-			expectedBody:       `{"error":"Invalid review format"}`,
-		},
-		{
-			name: "PostUserReviews - Invalid review format (wrong date format)",
-			fields: fields{
-				userService: new(MockService),
-				cardService: nil,
-			},
-			args: args{
-				request: func() *http.Request {
-					reviews := map[string]interface{}{
-						"reviews": []map[string]interface{}{
-							{
-								"card_id":         1,
-								"review_date":     "2024-12-11",
-								"success":        func(b bool) *bool { return &b }(true),
-								"incorrect_count": func(i int) *int { return &i }(0),
-							},
-						},
-					}
-					body, _ := json.Marshal(reviews)
-					req, _ := http.NewRequest(http.MethodPost, "/v1/api/lessons/123", bytes.NewReader(body))
+					cardIds :=   map[string]interface{}{}
+					body, _ := json.Marshal(cardIds)
+					req, _ := http.NewRequest(http.MethodPost, "/v1/api/reviews/123", bytes.NewReader(body))
 					req.Header.Set("Content-Type", "application/json")
 					return req
 				},
