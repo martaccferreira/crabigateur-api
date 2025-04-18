@@ -52,6 +52,21 @@ func (m *MockService) GetCardById(id int) (api.Card, error) {
 	return args.Get(0).(api.Card), args.Error(1)
 }
 
+func (m *MockService) CreateCard(card api.Card) (api.Card, error) {
+	args := m.Called(card)
+	return args.Get(0).(api.Card), args.Error(1)
+}
+
+func (m *MockService) UpdateCard(cardId int, card api.Card) (api.Card, error) {
+	args := m.Called(card)
+	return args.Get(0).(api.Card), args.Error(1)
+}
+
+func (m *MockService) DeleteCard(cardId int) error {
+	args := m.Called(cardId)
+	return args.Error(1)
+}
+
 type args struct {
 	request func() *http.Request
 }
@@ -65,7 +80,7 @@ func TestHandlers(t *testing.T) {
 		expectedBody       string
 	}{
 		{
-			name: "ApiStatus - Success",
+			name:   "ApiStatus - Success",
 			fields: fields{},
 			args: args{
 				request: func() *http.Request {
@@ -162,7 +177,7 @@ func TestHandlers(t *testing.T) {
 			},
 			args: args{
 				request: func() *http.Request {
-					cardIds :=   map[string]interface{}{
+					cardIds := map[string]interface{}{
 						"card_ids": []int{1},
 					}
 					body, _ := json.Marshal(cardIds)
@@ -182,7 +197,7 @@ func TestHandlers(t *testing.T) {
 			},
 			args: args{
 				request: func() *http.Request {
-					cardIds :=   map[string]interface{}{}
+					cardIds := map[string]interface{}{}
 					body, _ := json.Marshal(cardIds)
 					req, _ := http.NewRequest(http.MethodPost, "/v1/api/reviews/123", bytes.NewReader(body))
 					req.Header.Set("Content-Type", "application/json")
@@ -198,7 +213,7 @@ func TestHandlers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockUserService := tt.fields.userService
 			mockCardService := tt.fields.cardService
-			
+
 			router := gin.Default()
 			server := app.NewServer(router, mockUserService, mockCardService)
 

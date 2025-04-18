@@ -3,7 +3,6 @@ package api_test
 import (
 	"crabigateur-api/pkg/api"
 	"errors"
-	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,7 +80,6 @@ func TestUserService_LessonCards(t *testing.T) {
 			mockRepo.On("GetLessons", tt.userId, tt.numLessons).Return(tt.mockResult, tt.mockError)
 
 			result, resultId, err := service.LessonCards(tt.userId, tt.numLessons)
-			log.Println(err)
 
 			if tt.expectErr {
 				assert.Error(t, err)

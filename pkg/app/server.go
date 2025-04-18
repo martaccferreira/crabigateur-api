@@ -41,5 +41,6 @@ func (s *Server) Run() error {
 func (s *Server) RegisterValidators() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("sortable", api.ValidSortOrders)
+		v.RegisterStructValidation(api.CardStructValidation, api.Card{})
 	}
 }

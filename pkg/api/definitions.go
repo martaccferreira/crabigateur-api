@@ -3,8 +3,8 @@ package api
 import "time"
 
 type Card struct {
-	CardId int `json:"card_id"`
-	Level int `json:"level"`
+	CardId int `json:"card_id"  binding:"numeric"`
+	Level int `json:"level" binding:"required,numeric"`
 	WordType string `json:"word_type"`
 	Translation []string `json:"translations"`
 	Word string `json:"word"`
@@ -20,6 +20,37 @@ const (
 	DateDesc SortOrder = "date_desc"
 	LevelAsc SortOrder = "level_asc"
 	LevelDesc SortOrder = "level_desc"
+)
+
+type FormFlexion string
+
+const (
+	MascSing FormFlexion = "m.s."
+	MascPlur FormFlexion = "m.p."
+	FemSing FormFlexion = "f.s."
+	FemPlur FormFlexion = "f.p."
+)
+
+type FormNumber string
+
+const (
+	Sing FormNumber = "singular"
+	Plur FormNumber = "plural"
+)
+
+type FormGender string
+
+const (
+	Masc FormNumber = "m"
+	Fem FormNumber = "f"
+)
+
+type WordTypes string
+
+const (
+	Regular WordTypes = "regular"
+	Irregular WordTypes = "irregular"
+	Verb WordTypes = "verb"
 )
 
 type UserPath struct {
