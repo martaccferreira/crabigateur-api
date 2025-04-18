@@ -3,22 +3,22 @@ package api
 import "time"
 
 type Card struct {
-	CardId int `json:"card_id"  binding:"numeric"`
-	Level int `json:"level" binding:"required,numeric"`
-	WordType string `json:"word_type"`
-	Translation []string `json:"translations"`
-	Word string `json:"word"`
-	Gender string `json:"gender"`
-	Forms map[string][]string `json:"forms"`
-	IrregularVerb bool `json:"is_irregular_verb"`
+	CardId        int                 `json:"card_id"  binding:"numeric"`
+	Level         int                 `json:"level" binding:"required,numeric"`
+	WordType      string              `json:"word_type"`
+	Translation   []string            `json:"translations"`
+	Word          string              `json:"word"`
+	Gender        string              `json:"gender"`
+	Forms         map[string][]string `json:"forms"`
+	IrregularVerb bool                `json:"is_irregular_verb"`
 }
 
 type SortOrder string
 
 const (
-	DateAsc SortOrder = "date_asc"
-	DateDesc SortOrder = "date_desc"
-	LevelAsc SortOrder = "level_asc"
+	DateAsc   SortOrder = "date_asc"
+	DateDesc  SortOrder = "date_desc"
+	LevelAsc  SortOrder = "level_asc"
 	LevelDesc SortOrder = "level_desc"
 )
 
@@ -27,8 +27,8 @@ type FormFlexion string
 const (
 	MascSing FormFlexion = "m.s."
 	MascPlur FormFlexion = "m.p."
-	FemSing FormFlexion = "f.s."
-	FemPlur FormFlexion = "f.p."
+	FemSing  FormFlexion = "f.s."
+	FemPlur  FormFlexion = "f.p."
 )
 
 type FormNumber string
@@ -42,15 +42,15 @@ type FormGender string
 
 const (
 	Masc FormNumber = "m"
-	Fem FormNumber = "f"
+	Fem  FormNumber = "f"
 )
 
 type WordTypes string
 
 const (
-	Regular WordTypes = "regular"
+	Regular   WordTypes = "regular"
 	Irregular WordTypes = "irregular"
-	Verb WordTypes = "verb"
+	Verb      WordTypes = "verb"
 )
 
 type UserPath struct {
@@ -62,16 +62,25 @@ type CardPath struct {
 }
 
 type QueryParams struct {
-	FirstReview bool `form:"first_review" binding:"omitempty"`
-	Sort []SortOrder `form:"sort" binding:"omitempty,sortable"`
-	NumCards int	`form:"num_cards" binding:"omitempty,numeric,gte=0"`
+	FirstReview bool        `form:"first_review" binding:"omitempty"`
+	Sort        []SortOrder `form:"sort" binding:"omitempty,sortable"`
+	NumCards    int         `form:"num_cards" binding:"omitempty,numeric,gte=0"`
+}
+
+type CardQueryParams struct {
+	Level    *int   `form:"level"`
+	Word     string `form:"word"`      // supports substring matching
+	WordType string `form:"word_type"` // optional: "regular", "irregular", "verb"
+	Gender   string `form:"gender"`    // optional: "m", "f"
+	Limit    *int   `form:"limit"`
+	Offset   *int   `form:"offset"`
 }
 
 type Review struct {
-	CardId int `json:"card_id" binding:"required"`
-	ReviewDate time.Time `json:"review_date" binding:"required" time_format:"2006-01-02T15:04:05Z07:00"`
-	Success *bool `json:"success" binding:"required"`
-	IncorrectCount *int `json:"incorrect_count" binding:"required,gte=0"`
+	CardId         int       `json:"card_id" binding:"required"`
+	ReviewDate     time.Time `json:"review_date" binding:"required" time_format:"2006-01-02T15:04:05Z07:00"`
+	Success        *bool     `json:"success" binding:"required"`
+	IncorrectCount *int      `json:"incorrect_count" binding:"required,gte=0"`
 }
 
 type Reviews struct {
@@ -79,10 +88,10 @@ type Reviews struct {
 }
 
 type ReviewResult struct {
-	CardId int `json:"card_id"`
+	CardId   int    `json:"card_id"`
 	CardWord string `json:"card_word"`
-	Success bool `json:"success"`
-	StageId string `json:"stage_id"`
+	Success  bool   `json:"success"`
+	StageId  string `json:"stage_id"`
 }
 
 type QuizList struct {
@@ -90,7 +99,6 @@ type QuizList struct {
 }
 
 type QuizSummary struct {
-	StageId int             `json:"stage_id"`
+	StageId int            `json:"stage_id"`
 	Cards   []ReviewResult `json:"cards"`
 }
-

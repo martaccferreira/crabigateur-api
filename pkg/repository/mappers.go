@@ -9,24 +9,24 @@ import (
 )
 
 type Card struct {
-	CardId int
-	Level int
-	WordType string
+	CardId      int
+	Level       int
+	WordType    string
 	Translation json.RawMessage
-	Word string
-	Gender sql.NullString
+	Word        string
+	Gender      sql.NullString
 }
 
 type Verb struct {
-	Tense sql.NullString
-	Forms *json.RawMessage
+	Tense     sql.NullString
+	Forms     *json.RawMessage
 	Irregular sql.NullBool
 }
 
 type Form struct {
 	Gender sql.NullString
 	Number sql.NullString
-	Form sql.NullString
+	Form   sql.NullString
 }
 
 func nullStringToString(ns sql.NullString) string {
@@ -40,14 +40,14 @@ func nullBoolToBool(ns sql.NullBool) bool {
 	if ns.Valid {
 		return ns.Bool
 	}
-	return false 
+	return false
 }
 
 func getFormKey(f Form) string {
 	number := nullStringToString(f.Number)
 	gender := nullStringToString(f.Gender)
 
-	if(number == "singular"){
+	if number == "singular" {
 		return fmt.Sprintf("%s.s.", gender)
 	}
 	return fmt.Sprintf("%s.p.", gender)
@@ -65,7 +65,7 @@ func getConjugationForms(f *json.RawMessage) ([]string, error) {
 			return nil, err
 		}
 		return unmarshalledForms, nil
-	} 
+	}
 	return []string{}, nil
 }
 
@@ -82,6 +82,25 @@ func addConjugationToCard(card api.Card, verb Verb) error {
 	return nil
 }
 
+func parseCardNoForms(card Card) (api.Card, error) {
+	var unmarshalledTranslations []string
+	err := json.Unmarshal(card.Translation, &unmarshalledTranslations)
+	if err != nil {
+		return api.Card{}, err
+	}
+
+	var gender = nullStringToString(card.Gender)
+
+	return api.Card{
+		CardId:      card.CardId,
+		Level:       card.Level,
+		WordType:    card.WordType,
+		Translation: unmarshalledTranslations,
+		Word:        card.Word,
+		Gender:      gender,
+	}, nil
+}
+
 func parseNewCardFromRow(card Card, verb Verb, form Form) (api.Card, error) {
 	var unmarshalledTranslations []string
 	err := json.Unmarshal(card.Translation, &unmarshalledTranslations)
@@ -90,28 +109,28 @@ func parseNewCardFromRow(card Card, verb Verb, form Form) (api.Card, error) {
 	}
 
 	newCard := api.Card{
-		CardId: card.CardId,
-		Level: card.Level,
-		WordType: card.WordType,
+		CardId:      card.CardId,
+		Level:       card.Level,
+		WordType:    card.WordType,
 		Translation: unmarshalledTranslations,
 	}
 
 	newCard.Word = card.Word
 	switch card.WordType {
 	case "regular":
-			newCard.Gender = nullStringToString(card.Gender)
+		newCard.Gender = nullStringToString(card.Gender)
 	case "irregular":
-			newCard.Forms = make(map[string][]string)
-			newCard.Forms["m.s."] = []string{card.Word}
-			addFormToCard(newCard, form)
+		newCard.Forms = make(map[string][]string)
+		newCard.Forms["m.s."] = []string{card.Word}
+		addFormToCard(newCard, form)
 	case "verb":
-			newCard.Forms = make(map[string][]string)
-			err = addConjugationToCard(newCard, verb)
-			if err != nil {
-				return api.Card{}, err
-			}
-			newCard.IrregularVerb = nullBoolToBool(verb.Irregular)
-		
+		newCard.Forms = make(map[string][]string)
+		err = addConjugationToCard(newCard, verb)
+		if err != nil {
+			return api.Card{}, err
+		}
+		newCard.IrregularVerb = nullBoolToBool(verb.Irregular)
+
 	}
 	return newCard, nil
 }
@@ -129,9 +148,9 @@ func addMoreFormsToExistingCard(card api.Card, verb Verb, form Form) error {
 func parseAllCardsFromQuery(rows *sql.Rows) ([]api.Card, error) {
 	var newCard api.Card
 	cards := []api.Card{}
-	lastCardId := 0 	// impossible card id to make sure uninitialized newCard isn't added to cards
-	hasRows := false 	// flag that ensures cards are only appended if query has results
-	
+	lastCardId := 0  // impossible card id to make sure uninitialized newCard isn't added to cards
+	hasRows := false // flag that ensures cards are only appended if query has results
+
 	for rows.Next() {
 		hasRows = true
 		var card Card
@@ -143,13 +162,13 @@ func parseAllCardsFromQuery(rows *sql.Rows) ([]api.Card, error) {
 			return nil, err
 		}
 
-		if(card.CardId == lastCardId) {
+		if card.CardId == lastCardId {
 			if err = addMoreFormsToExistingCard(newCard, verb, form); err != nil {
 				log.Printf("storage - Error unmarshalling JSONB: %v", err)
 				return nil, err
 			}
 			continue
-		} 
+		}
 		if lastCardId != 0 {
 			cards = append(cards, newCard)
 		}

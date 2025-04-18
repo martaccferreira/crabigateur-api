@@ -309,3 +309,25 @@ func (s *Server) DeleteCard() gin.HandlerFunc {
 		c.JSON(http.StatusOK, response)
 	}
 }
+
+func (s *Server) SearchCards() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Content-Type", "application/json")
+
+		var queryParams api.CardQueryParams
+		if err := c.ShouldBindQuery(&queryParams); err != nil {
+			log.Printf("handler error: invalid query params: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+			return
+		}
+
+		cards, err := s.cardService.SearchCards(queryParams)
+		if err != nil {
+			log.Printf("service error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": cards})
+	}
+}

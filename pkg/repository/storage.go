@@ -19,6 +19,7 @@ type Storage interface {
 	InsertOrUpdateConjugation(isUpdate bool, cardId int, tense string, forms []string, isIrregular bool) error
 	InsertOrUpdateForm(isUpdate bool, cardId int, gender string, number string, form string) error
 	DeleteCard(cardId int) error
+	SearchCards(query api.CardQueryParams) ([]api.Card, error)
 }
 
 type storage struct {
@@ -185,4 +186,29 @@ func (s *storage) DeleteCard(cardId int) error {
 		return fmt.Errorf("storage - DeleteCard: %s", err)
 	}
 	return nil
+}
+
+func (s *storage) SearchCards(query api.CardQueryParams) ([]api.Card, error) {
+	rows, err := s.SearchCardsQuery(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cards []api.Card
+	for rows.Next() {
+		var card Card
+
+		err := rows.Scan(&card.CardId, &card.Word, &card.Translation, &card.WordType, &card.Gender, &card.Level)
+		if err != nil {
+			return nil, err
+		}
+		newCard, err := parseCardNoForms(card)
+		if err != nil {
+			return nil, err
+		}
+		cards = append(cards, newCard)
+	}
+
+	return cards, nil
 }

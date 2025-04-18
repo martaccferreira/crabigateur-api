@@ -26,6 +26,7 @@ func (s *Server) Routes() *gin.Engine {
 			card.POST("", s.CreateCard())
 			card.PUT("/:card_id", s.UpdateCard())
 			card.DELETE("/:card_id", s.DeleteCard())
+			card.GET("/search", s.SearchCards())
 		}
 	}
 

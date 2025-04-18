@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 const CardSelector = `
@@ -318,4 +319,53 @@ func (s *storage) CardsDelete(cardId int) (sql.Result, error) {
 	`
 
 	return s.db.Exec(query, cardId)
+}
+
+func (s *storage) SearchCardsQuery(query api.CardQueryParams) (*sql.Rows, error) {
+	var args []interface{}
+	var conditions []string
+	argIndex := 1
+
+	if query.Level != nil {
+		conditions = append(conditions, fmt.Sprintf("level = $%d", argIndex))
+		args = append(args, *query.Level)
+		argIndex++
+	}
+
+	if query.Word != "" {
+		conditions = append(conditions, fmt.Sprintf("word ILIKE $%d", argIndex))
+		args = append(args, "%"+query.Word+"%")
+		argIndex++
+	}
+
+	if query.WordType != "" {
+		conditions = append(conditions, fmt.Sprintf("word_type = $%d", argIndex))
+		args = append(args, query.WordType)
+		argIndex++
+	}
+
+	if query.Gender != "" {
+		conditions = append(conditions, fmt.Sprintf("gender = $%d", argIndex))
+		args = append(args, query.Gender)
+		argIndex++
+	}
+
+	queryStr := `SELECT card_id, word, translation, word_type, gender, level FROM Cards`
+	if len(conditions) > 0 {
+		queryStr += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	if query.Limit != nil {
+		queryStr += fmt.Sprintf(" LIMIT $%d", argIndex)
+		args = append(args, *query.Limit)
+		argIndex++
+	}
+
+	if query.Offset != nil {
+		queryStr += fmt.Sprintf(" OFFSET $%d", argIndex)
+		args = append(args, *query.Offset)
+		argIndex++
+	}
+
+	return s.db.Query(queryStr, args...)
 }

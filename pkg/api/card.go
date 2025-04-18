@@ -5,6 +5,7 @@ type CardService interface {
 	CreateCard(card Card) (Card, error)
 	UpdateCard(cardId int, card Card) (Card, error)
 	DeleteCard(cardId int) error
+	SearchCards(query CardQueryParams) ([]Card, error)
 }
 
 type CardRepository interface {
@@ -14,6 +15,7 @@ type CardRepository interface {
 	InsertOrUpdateConjugation(isUpdate bool, cardId int, tense string, forms []string, isIrregular bool) error
 	InsertOrUpdateForm(isUpdate bool, cardId int, gender string, number string, form string) error
 	DeleteCard(cardId int) error
+	SearchCards(query CardQueryParams) ([]Card, error)
 }
 
 type cardService struct {
@@ -108,4 +110,8 @@ func (u *cardService) DeleteCard(cardId int) error {
 	}
 
 	return nil
+}
+
+func (u *cardService) SearchCards(query CardQueryParams) ([]Card, error) {
+	return u.storage.SearchCards(query)
 }

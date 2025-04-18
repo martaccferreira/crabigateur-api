@@ -64,7 +64,12 @@ func (m *MockService) UpdateCard(cardId int, card api.Card) (api.Card, error) {
 
 func (m *MockService) DeleteCard(cardId int) error {
 	args := m.Called(cardId)
-	return args.Error(1)
+	return args.Error(0)
+}
+
+func (m *MockService) SearchCards(query api.CardQueryParams) ([]api.Card, error) {
+	args := m.Called(query)
+	return args.Get(0).([]api.Card), args.Error(1)
 }
 
 type args struct {
