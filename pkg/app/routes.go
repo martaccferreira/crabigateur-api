@@ -10,11 +10,23 @@ func (s *Server) Routes() *gin.Engine {
 	{
 		v1.GET("/status", s.ApiStatus())
 		v1.GET("/lessons/:user_id", s.GetUserLessons())
-		v1.GET("/reviews/:user_id", s.GetUserReviews())
-		v1.POST("/reviews/:user_id", s.PostUserReviews())
-		v1.PUT("/reviews/:user_id", s.PutUserReviews())
+
+		reviews := v1.Group("/reviews")
+		{
+			reviews.GET("/:user_id", s.GetUserReviews())
+			reviews.POST("/:user_id", s.PostUserReviews())
+			reviews.PUT("/:user_id", s.PutUserReviews())
+		}
+
 		v1.GET("/quiz_summary/:user_id", s.GetUserQuizSummary())
-		v1.GET("/card/:card_id", s.GetCardById())
+
+		card := v1.Group("/card")
+		{
+			card.GET("/:card_id", s.GetCardById())
+			card.POST("", s.CreateCard())
+			card.PUT("/:card_id", s.UpdateCard())
+			card.DELETE("/:card_id", s.DeleteCard())
+		}
 	}
 
 	return router

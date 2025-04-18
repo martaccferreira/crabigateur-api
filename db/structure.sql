@@ -15,14 +15,18 @@ CREATE TABLE Users (
 
 DROP TABLE IF EXISTS Cards; 
 CREATE TABLE Cards (
-    card_id SERIAL,
-    word VARCHAR(50) not null,
-    translation JSONB not null,
-    word_type word_types default 'regular',
-    gender genders,
-    level INT not null,
-    PRIMARY KEY (card_id)
-); 
+    card_id SERIAL PRIMARY KEY,
+    word VARCHAR(50) NOT NULL,
+    translation JSONB NOT NULL,
+    word_type word_types DEFAULT 'regular',
+    gender TEXT CHECK (gender IN ('m', 'f') OR gender IS NULL),
+    level INT NOT NULL
+);
+
+-- Create a unique index to enforce uniqueness on (word, gender), treating NULL as '__null__'
+DROP INDEX IF EXISTS unique_word_gender;
+CREATE UNIQUE INDEX unique_word_gender 
+ON Cards ((word || '|' || COALESCE(gender, '__null__')));
 
 DROP TABLE IF EXISTS Conjugations; 
 CREATE TABLE Conjugations (
@@ -32,7 +36,8 @@ CREATE TABLE Conjugations (
     forms JSONB not null,
     irregular BOOLEAN default FALSE,
     PRIMARY KEY (conjugation_id),
-    FOREIGN KEY (card_id) REFERENCES Cards(card_id)
+    FOREIGN KEY (card_id) REFERENCES Cards(card_id) ON DELETE CASCADE,
+    UNIQUE(card_id, tense)
 );
 
 DROP TABLE IF EXISTS Forms; 
@@ -43,7 +48,8 @@ CREATE TABLE Forms (
     number grammatical_number not null,
     form VARCHAR(50) not null,
     PRIMARY KEY (form_id),
-    FOREIGN KEY (card_id) REFERENCES Cards(card_id)
+    FOREIGN KEY (card_id) REFERENCES Cards(card_id) ON DELETE CASCADE,
+    UNIQUE(card_id, gender, number)
 );
 
 DROP TABLE IF EXISTS SRSStages; 
@@ -63,7 +69,7 @@ CREATE TABLE UserCardStatus (
     next_review_date TIMESTAMPTZ,
     PRIMARY KEY (user_id, card_id),
     FOREIGN KEY (user_id) REFERENCES Users(user_id),
-    FOREIGN KEY (card_id) REFERENCES Cards(card_id),
+    FOREIGN KEY (card_id) REFERENCES Cards(card_id) ON DELETE CASCADE,
     FOREIGN KEY (stage_id) REFERENCES SRSStages(stage_id)
 );
 
@@ -77,7 +83,7 @@ CREATE TABLE Reviews (
     previous_stage INT CHECK (previous_stage BETWEEN 0 AND 9),
     PRIMARY KEY (review_id),
     FOREIGN KEY (user_id) REFERENCES Users(user_id),
-    FOREIGN KEY (card_id) REFERENCES Cards(card_id)
+    FOREIGN KEY (card_id) REFERENCES Cards(card_id) ON DELETE CASCADE
 );
 
 

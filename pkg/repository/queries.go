@@ -3,6 +3,7 @@ package repository
 import (
 	"crabigateur-api/pkg/api"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 )
 
@@ -14,13 +15,13 @@ const CardSelector = `
 	ON c.card_id = con.card_id
 	LEFT JOIN forms f
 	ON c.card_id = f.card_id
-`;
+`
 
-func (s* storage) LessonsQuery(userId string, numLessons int) (*sql.Rows, error) {
+func (s *storage) LessonsQuery(userId string, numLessons int) (*sql.Rows, error) {
 	limit := ""
 	if numLessons > 0 {
 		limit = fmt.Sprintf("LIMIT %d", numLessons)
-	} 
+	}
 
 	lessonCardsQuery := fmt.Sprintf(`
 		WITH PendingLessonCardIds AS (
@@ -44,14 +45,14 @@ func (s* storage) LessonsQuery(userId string, numLessons int) (*sql.Rows, error)
 		WHERE c.card_id IN (SELECT card_id FROM PendingLessonCardIds)
 		ORDER BY c.card_id;
 	`, limit, CardSelector)
-	
+
 	return s.db.Query(lessonCardsQuery, userId)
 }
 
-func (s* storage) ReviewQuery(userId string, firstReview bool, sort []api.SortOrder) (*sql.Rows, error) {
+func (s *storage) ReviewQuery(userId string, firstReview bool, sort []api.SortOrder) (*sql.Rows, error) {
 	sortOrder := ""
 	for _, value := range sort {
-        switch value {
+		switch value {
 		case api.DateAsc:
 			sortOrder += "ucs.next_review_date ASC,"
 		case api.DateDesc:
@@ -61,7 +62,7 @@ func (s* storage) ReviewQuery(userId string, firstReview bool, sort []api.SortOr
 		case api.LevelDesc:
 			sortOrder += "c.level DESC,"
 		}
-    }
+	}
 
 	// Remove trailing comma and space
 	if len(sortOrder) > 0 {
@@ -92,7 +93,7 @@ func (s* storage) ReviewQuery(userId string, firstReview bool, sort []api.SortOr
 	return s.db.Query(reviewsQuery, userId, firstReview)
 }
 
-func (s* storage) ReviewsInsert(userId string, review api.Review) (sql.Result, error) {
+func (s *storage) ReviewsInsert(userId string, review api.Review) (sql.Result, error) {
 	reviewsInsert := `
 		INSERT INTO Reviews (user_id, card_id, review_date, success, previous_stage)
 		VALUES (
@@ -112,7 +113,7 @@ func (s* storage) ReviewsInsert(userId string, review api.Review) (sql.Result, e
 	return s.db.Exec(reviewsInsert, userId, review.CardId, review.ReviewDate, review.Success)
 }
 
-func (s* storage) UserCardStatusInsert(userId string, cardId int) (*sql.Row) {
+func (s *storage) UserCardStatusInsert(userId string, cardId int) *sql.Row {
 	insertQuery := `
 		WITH inserted AS (
 			INSERT INTO UserCardStatus (user_id, card_id, stage_id, next_review_date)
@@ -134,7 +135,7 @@ func (s* storage) UserCardStatusInsert(userId string, cardId int) (*sql.Row) {
 
 }
 
-func (s* storage) UserCardStatusUpdate(userId string, review api.Review) (*sql.Row) {
+func (s *storage) UserCardStatusUpdate(userId string, review api.Review) *sql.Row {
 	stageUpdate := fmt.Sprintf(`
     CASE 
         WHEN ucs.stage_id = 0 THEN 1  -- If stage_id is 0, always move to 1
@@ -146,7 +147,7 @@ func (s* storage) UserCardStatusUpdate(userId string, review api.Review) (*sql.R
             ) * s.stage_penalty
         )
     END`, *review.Success, *review.IncorrectCount)
-	
+
 	updateQuery := fmt.Sprintf(`
 		UPDATE UserCardStatus ucs
 		SET stage_id = cs.new_stage_id,
@@ -172,8 +173,7 @@ func (s* storage) UserCardStatusUpdate(userId string, review api.Review) (*sql.R
 	return s.db.QueryRow(finalQuery, userId, review.CardId, review.ReviewDate)
 }
 
-func (s* storage) MostRecentReviewsQuery(userId string, numCards int) (*sql.Rows, error) {
-	fmt.Print(numCards, userId)
+func (s *storage) MostRecentReviewsQuery(userId string, numCards int) (*sql.Rows, error) {
 	mostRecentReview := `
 		SELECT r.card_id, c.word AS card_word, r.success, ucs.stage_id
 		FROM Reviews r
@@ -189,11 +189,133 @@ func (s* storage) MostRecentReviewsQuery(userId string, numCards int) (*sql.Rows
 	return s.db.Query(mostRecentReview, userId, numCards)
 }
 
-func (s* storage) CardQuery(id int) (*sql.Rows, error) {
+func (s *storage) CardQuery(id int) (*sql.Rows, error) {
 	cardQuery := fmt.Sprintf(`
 		%s
 		WHERE c.card_id = $1;
 	`, CardSelector)
-	
+
 	return s.db.Query(cardQuery, id)
+}
+
+func (s *storage) CardsInsert(word string, translation []string, wordType string, gender string, level int) (*sql.Row, error) {
+	translationJSON, err := json.Marshal(translation)
+	if err != nil {
+		return nil, err
+	}
+
+	var genderValue interface{}
+	if gender == "" {
+		genderValue = nil
+	} else {
+		genderValue = gender
+	}
+
+	cardsInsert := `
+		INSERT INTO Cards (word, translation, word_type, gender, level)
+		VALUES ($1, $2::jsonb, $3, $4, $5)
+		RETURNING card_id;
+	`
+
+	return s.db.QueryRow(cardsInsert, word, translationJSON, wordType, genderValue, level), nil
+}
+
+func (s *storage) ConjugationsInsert(cardId int, tense string, forms []string, isIrregular bool) (sql.Result, error) {
+	formsJSON, err := json.Marshal(forms)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		INSERT INTO Conjugations (card_id, tense, forms, irregular)
+		VALUES ($1, $2, $3::jsonb, $4)
+	`
+
+	return s.db.Exec(query, cardId, tense, formsJSON, isIrregular)
+}
+
+func (s *storage) FormsInsert(cardId int, gender string, number string, form string) (sql.Result, error) {
+	query := `
+		INSERT INTO Forms (card_id, gender, number, form)
+		VALUES ($1, $2, $3, $4)
+	`
+
+	return s.db.Exec(query, cardId, gender, number, form)
+}
+
+func (s *storage) CardsUpdate(cardId int, word string, translation []string, wordType string, gender string, level int) (sql.Result, error) {
+	translationJSON, err := json.Marshal(translation)
+	if err != nil {
+		return nil, err
+	}
+
+	var genderValue interface{}
+	if gender == "" {
+		genderValue = nil
+	} else {
+		genderValue = gender
+	}
+
+	cardsInsert := `
+		UPDATE Cards
+		SET word = $2,
+		    translation = $3::jsonb,
+		    word_type = $4,
+		    gender = $5,
+		    level = $6
+		WHERE card_id = $1;
+	`
+
+	return s.db.Exec(cardsInsert, cardId, word, translationJSON, wordType, genderValue, level)
+}
+
+func (s *storage) ConjugationsUpdate(cardId int, tense string, forms []string, isIrregular bool) (sql.Result, error) {
+	if len(forms) == 0 {
+		return s.db.Exec(`
+			DELETE FROM Conjugations
+			WHERE card_id = $1 AND tense = $2;
+		`, cardId, tense)
+
+	}
+
+	formsJSON, err := json.Marshal(forms)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		INSERT INTO Conjugations (card_id, tense, forms, irregular)
+		VALUES ($1, $2, $3::jsonb, $4)
+		ON CONFLICT (card_id, tense)
+		DO UPDATE SET forms = EXCLUDED.forms, irregular = EXCLUDED.irregular;
+	`
+
+	return s.db.Exec(query, cardId, tense, formsJSON, isIrregular)
+}
+
+func (s *storage) FormsUpdate(cardId int, gender string, number string, form string) (sql.Result, error) {
+	if form == "" {
+		return s.db.Exec(`
+			DELETE FROM Forms
+			WHERE card_id = $1 AND gender = $2 AND number = $3;
+		`, cardId, gender, number)
+	}
+
+	query := `
+		INSERT INTO Forms (card_id, gender, number, form)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (card_id, gender, number)
+		DO UPDATE SET form = EXCLUDED.form;
+	`
+
+	return s.db.Exec(query, cardId, gender, number, form)
+}
+
+func (s *storage) CardsDelete(cardId int) (sql.Result, error) {
+	query := `
+		DELETE FROM Cards
+		WHERE card_id = $1;
+	`
+
+	return s.db.Exec(query, cardId)
 }
