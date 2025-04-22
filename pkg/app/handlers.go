@@ -196,6 +196,26 @@ func (s *Server) GetUserQuizSummary() gin.HandlerFunc {
 	}
 }
 
+func (s *Server) GetUserStats() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Content-Type", "application/json")
+
+		var pathParams api.UserPath
+		if err := c.ShouldBindUri(&pathParams); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
+			return
+		}
+
+		stats, err := s.userService.GetStats(pathParams.UserId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not retrieve stats"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": stats})
+	}
+}
+
 func (s *Server) GetCardById() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Content-Type", "application/json")

@@ -12,6 +12,7 @@ type UserService interface {
 	AddReviews(userId string, cardId []int) ([]ReviewResult, error)
 	UpdateReview(userId string, review Review) (ReviewResult, error)
 	GetQuizSummary(userId string, numCards int) ([]QuizSummary, error)
+	GetStats(userId string) (map[string]interface{}, error)
 }
 
 type UserRepository interface {
@@ -20,6 +21,10 @@ type UserRepository interface {
 	InsertReview(userId string, cardId int) (ReviewResult, error)
 	UpdateReview(userId string, reviews Review) (ReviewResult, error)
 	GetMostRecentReviews(userId string, numCards int) ([]ReviewResult, error)
+	CountPendingReviews(userId string) (int, error)
+	GetRecentMistakes(userId string) ([]CardTag, error)
+	GetLevelProgress(userId string) ([]CardProgress, error)
+	GetWordStats(userId string) (map[string]map[string]int, error)
 }
 
 type userService struct {
@@ -32,7 +37,7 @@ func NewUserService(userRepo UserRepository) UserService {
 	}
 }
 
-func (u* userService) LessonCards(userId string, numLessons int) ([]Card, []int, error) {
+func (u *userService) LessonCards(userId string, numLessons int) ([]Card, []int, error) {
 	cards, err := u.storage.GetLessons(userId, numLessons)
 	if err != nil {
 		return nil, nil, err
@@ -44,18 +49,18 @@ func (u* userService) LessonCards(userId string, numLessons int) ([]Card, []int,
 	return cards, ids, nil
 }
 
-func (u* userService) ReviewCard(userId string, firstReview bool, sort []SortOrder) (Card, error) {
+func (u *userService) ReviewCard(userId string, firstReview bool, sort []SortOrder) (Card, error) {
 	reviews, err := u.storage.GetReview(userId, firstReview, sort)
 	if err != nil {
 		return Card{}, err
 	}
 	if len(reviews) == 0 {
 		return Card{}, nil
-	} 
+	}
 	return reviews[0], nil
 }
 
-func (u* userService) AddReviews(userId string, cardIds []int) ([]ReviewResult, error) {
+func (u *userService) AddReviews(userId string, cardIds []int) ([]ReviewResult, error) {
 	results := []ReviewResult{}
 	for _, cardId := range cardIds {
 		result, err := u.storage.InsertReview(userId, cardId)
@@ -67,21 +72,21 @@ func (u* userService) AddReviews(userId string, cardIds []int) ([]ReviewResult, 
 	return results, nil
 }
 
-func (u* userService) UpdateReview(userId string, review Review) (ReviewResult, error) {
+func (u *userService) UpdateReview(userId string, review Review) (ReviewResult, error) {
 	result, err := u.storage.UpdateReview(userId, review)
 	if err != nil {
 		return ReviewResult{}, err
 	}
-		
+
 	return result, nil
 }
 
-func (u* userService) GetQuizSummary(userId string, numCards int) ([]QuizSummary, error) {
+func (u *userService) GetQuizSummary(userId string, numCards int) ([]QuizSummary, error) {
 	reviews, err := u.storage.GetMostRecentReviews(userId, numCards)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Map to group reviews by stage_id
 	groupedReviews := make(map[int][]ReviewResult)
 
@@ -107,4 +112,33 @@ func (u* userService) GetQuizSummary(userId string, numCards int) ([]QuizSummary
 	})
 
 	return summary, nil
+}
+
+func (s *userService) GetStats(userId string) (map[string]interface{}, error) {
+	pending, err := s.storage.CountPendingReviews(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	recentMistakes, err := s.storage.GetRecentMistakes(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	progress, err := s.storage.GetLevelProgress(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	wordStats, err := s.storage.GetWordStats(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"pendingReviews":     pending,
+		"recentMistakes":     recentMistakes,
+		"levelProgress":      progress,
+		"wordLevelBreakdown": wordStats,
+	}, nil
 }

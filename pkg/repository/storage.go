@@ -13,6 +13,10 @@ type Storage interface {
 	InsertReview(userId string, cardId int) (api.ReviewResult, error)
 	UpdateReview(userId string, review api.Review) (api.ReviewResult, error)
 	GetMostRecentReviews(userId string, numCards int) ([]api.ReviewResult, error)
+	CountPendingReviews(userId string) (int, error)
+	GetRecentMistakes(userID string) ([]api.CardTag, error)
+	GetLevelProgress(userId string) ([]api.CardProgress, error)
+	GetWordStats(userId string) (map[string]map[string]int, error)
 	GetCard(id int) (api.Card, error)
 	InsertCard(word string, translation []string, wordType string, gender string, level int) (int, error)
 	UpdateCard(cardId int, word string, translation []string, wordType string, gender string, level int) error
@@ -107,6 +111,78 @@ func (s *storage) GetMostRecentReviews(userId string, numCards int) ([]api.Revie
 		result = append(result, review)
 	}
 	return result, nil
+}
+
+func (s *storage) CountPendingReviews(userId string) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM UserCardStatus
+		WHERE user_id = $1 AND next_review_date <= NOW();
+	`
+	var count int
+	err := s.db.QueryRow(query, userId).Scan(&count)
+	return count, err
+}
+
+func (s *storage) GetRecentMistakes(userID string) ([]api.CardTag, error) {
+	rows, err := s.MostRecentMistakesQuery(userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var mistakes []api.CardTag
+
+	for rows.Next() {
+		var m api.CardTag
+		if err := rows.Scan(&m.Id, &m.Word, &m.Type); err != nil {
+			return nil, err
+		}
+		mistakes = append(mistakes, m)
+	}
+
+	return mistakes, nil
+}
+
+func (s *storage) GetLevelProgress(userId string) ([]api.CardProgress, error) {
+	rows, err := s.LevelProgressQuery(userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var progress []api.CardProgress
+	for rows.Next() {
+		var lp api.CardProgress
+		err := rows.Scan(&lp.CardId, &lp.CardWord, &lp.StageId)
+		if err != nil {
+			return nil, err
+		}
+		progress = append(progress, lp)
+	}
+	return progress, nil
+}
+
+func (s *storage) GetWordStats(userId string) (map[string]map[string]int, error) {
+	rows, err := s.WordPerStageStatsQuery(userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	stats := make(map[string]map[string]int)
+	for rows.Next() {
+		var stage, wordType string
+		var count int
+		err := rows.Scan(&stage, &wordType, &count)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := stats[stage]; !ok {
+			stats[stage] = make(map[string]int)
+		}
+		stats[stage][wordType] = count
+	}
+	return stats, nil
 }
 
 func (s *storage) GetCard(id int) (api.Card, error) {

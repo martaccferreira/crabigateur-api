@@ -72,6 +72,11 @@ func (m *MockService) SearchCards(query api.CardQueryParams) ([]api.Card, error)
 	return args.Get(0).([]api.Card), args.Error(1)
 }
 
+func (m *MockService) GetStats(userId string) (map[string]interface{}, error) {
+	args := m.Called(userId)
+	return args.Get(0).(map[string]interface{}), args.Error(1)
+}
+
 type args struct {
 	request func() *http.Request
 }

@@ -102,3 +102,15 @@ type QuizSummary struct {
 	StageId int            `json:"stage_id"`
 	Cards   []ReviewResult `json:"cards"`
 }
+
+type CardProgress struct {
+	CardId   int    `json:"card_id"`
+	CardWord string `json:"card_word"`
+	StageId  int    `json:"stage_id"`
+}
+
+type CardTag struct {
+	Id   int    `json:"card_id"`
+	Word string `json:"card_word"`
+	Type string `json:"word_type"`
+}

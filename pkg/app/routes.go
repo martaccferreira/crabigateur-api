@@ -19,6 +19,7 @@ func (s *Server) Routes() *gin.Engine {
 		}
 
 		v1.GET("/quiz_summary/:user_id", s.GetUserQuizSummary())
+		v1.GET("/stats/:user_id", s.GetUserStats())
 
 		card := v1.Group("/card")
 		{

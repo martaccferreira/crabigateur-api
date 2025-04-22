@@ -190,6 +190,43 @@ func (s *storage) MostRecentReviewsQuery(userId string, numCards int) (*sql.Rows
 	return s.db.Query(mostRecentReview, userId, numCards)
 }
 
+func (s *storage) MostRecentMistakesQuery(userId string) (*sql.Rows, error) {
+	query := `
+		SELECT r.card_id, c.word, c.word_type
+		FROM Reviews r
+		JOIN Cards c ON r.card_id = c.card_id
+		WHERE r.user_id = $1 AND r.success = false
+		ORDER BY r.review_date DESC
+		LIMIT 10;
+	`
+
+	return s.db.Query(query, userId)
+}
+
+func (s *storage) LevelProgressQuery(userId string) (*sql.Rows, error) {
+	query := `
+		SELECT c.card_id, c.word, COALESCE(ucs.stage_id, 0) AS stage_id
+		FROM Users u
+		JOIN Cards c ON c.level = u.level
+		LEFT JOIN UserCardStatus ucs 
+			ON ucs.card_id = c.card_id AND ucs.user_id = u.user_id
+		WHERE u.user_id = $1;
+	`
+	return s.db.Query(query, userId)
+}
+
+func (s *storage) WordPerStageStatsQuery(userId string) (*sql.Rows, error) {
+	query := `
+		SELECT s.stage_name, c.word_type, COUNT(*)
+		FROM UserCardStatus ucs
+		JOIN SRSStages s ON s.stage_id = ucs.stage_id
+		JOIN Cards c ON c.card_id = ucs.card_id
+		WHERE ucs.user_id = $1
+		GROUP BY s.stage_name, c.word_type;
+	`
+	return s.db.Query(query, userId)
+}
+
 func (s *storage) CardQuery(id int) (*sql.Rows, error) {
 	cardQuery := fmt.Sprintf(`
 		%s
